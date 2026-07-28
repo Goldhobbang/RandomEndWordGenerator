@@ -374,6 +374,8 @@
                 lineLen++;
                 idx++;
 
+                span.scrollIntoView({ block: 'end', behavior: 'instant' });
+
                 /* particles at character position */
                 const rect = span.getBoundingClientRect();
                 const canvasRect = canvas.getBoundingClientRect();
