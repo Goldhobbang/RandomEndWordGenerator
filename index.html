@@ -30,6 +30,18 @@
             0% { transform: translate(0, 0) rotate(0deg); }
             100% { transform: translate(3%, -2%) rotate(2deg); }
         }
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-1px, 1px); }
+            20% { transform: translate(1px, -1px); }
+            30% { transform: translate(-1px, 0); }
+            40% { transform: translate(1px, 1px); }
+            50% { transform: translate(0, -1px); }
+            60% { transform: translate(-1px, 1px); }
+            70% { transform: translate(1px, 0); }
+            80% { transform: translate(0, -1px); }
+            90% { transform: translate(1px, 1px); }
+        }
         .container {
             text-align: center;
             padding: 2.5rem 2rem;
@@ -39,6 +51,10 @@
             border-radius: 16px;
             background: rgba(255,255,255,0.015);
             backdrop-filter: blur(20px);
+            position: relative;
+        }
+        .container.shake {
+            animation: screenShake 0.15s ease;
         }
         h1 {
             font-size: 1.3rem;
@@ -56,18 +72,30 @@
             0% { background-position: 0% 50%; }
             100% { background-position: 100% 50%; }
         }
+        .result-wrap {
+            position: relative;
+            margin-bottom: 2rem;
+        }
+        #particleCanvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
         #result {
             font-size: 2.2rem;
             font-weight: 700;
             min-height: 3.5rem;
             line-height: 1.8;
             word-break: keep-all;
-            white-space: normal;
-            margin-bottom: 2rem;
+            white-space: pre-wrap;
             color: #fff;
             letter-spacing: 0.08em;
             text-align: center;
             transition: font-size 0.15s;
+            position: relative;
+            z-index: 1;
         }
         #result.empty {
             color: #444;
@@ -85,12 +113,12 @@
             60% { opacity: 1; transform: scale(1.05) translateY(0); filter: blur(0); }
             100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
         }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-1.5px); }
-            75% { transform: translateX(1.5px); }
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
         }
-        #result.shake { animation: shake 0.06s ease; }
         .controls {
             display: flex;
             justify-content: center;
@@ -156,6 +184,15 @@
         button:disabled { opacity: 0.2; cursor: not-allowed; }
         button:disabled:hover { border-color: rgba(255,255,255,0.1); color: #aaa; box-shadow: none; }
         button:disabled:hover::before { left: -100%; }
+        #copyBtn {
+            padding: 0.55rem 1.5rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+        }
+        #copyBtn.copied {
+            border-color: rgba(100, 200, 120, 0.5);
+            color: #6c8;
+        }
         .info {
             margin-top: 1.5rem;
             font-size: 0.7rem;
@@ -165,9 +202,12 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container" id="container">
         <h1>RANDOM ENDWORD GENERATOR</h1>
-        <div id="result" class="empty">데이터를 불러오는 중...</div>
+        <div class="result-wrap">
+            <canvas id="particleCanvas"></canvas>
+            <div id="result" class="empty">데이터를 불러오는 중...</div>
+        </div>
         <div class="controls">
             <div class="control-group">
                 <label>최대 단어 수</label>
@@ -178,14 +218,83 @@
                 <input type="number" id="maxChars" value="50" min="1" max="500">
             </div>
         </div>
-        <button id="btn" disabled>GENERATE</button>
+        <div class="actions">
+            <button id="btn" disabled>GENERATE</button>
+            <button id="copyBtn" disabled>COPY</button>
+        </div>
         <div class="info" id="info"></div>
     </div>
     <script>
         let startDict = {};
         let wordList = [];
         let animTimer = null;
+        let currentText = '';
 
+        const COLORS = ['#5b9bd5', '#8a7cc8', '#d55b5b', '#5bd5a8', '#d5c85b', '#d58a5b'];
+
+        /* ── Particles ── */
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let rafId = null;
+
+        function resizeCanvas() {
+            const wrap = canvas.parentElement;
+            canvas.width = wrap.offsetWidth;
+            canvas.height = wrap.offsetHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function spawnParticles(x, y, count) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1.5 + Math.random() * 4;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1,
+                    decay: 0.015 + Math.random() * 0.02,
+                    size: 2 + Math.random() * 3,
+                    color: COLORS[Math.floor(Math.random() * COLORS.length)]
+                });
+            }
+            if (!rafId) tickParticles();
+        }
+
+        function tickParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.08;
+                p.life -= p.decay;
+                if (p.life <= 0) { particles.splice(i, 1); continue; }
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            if (particles.length > 0) {
+                rafId = requestAnimationFrame(tickParticles);
+            } else {
+                rafId = null;
+            }
+        }
+
+        /* ── Screen shake ── */
+        const containerEl = document.getElementById('container');
+        function triggerShake() {
+            containerEl.classList.remove('shake');
+            void containerEl.offsetWidth;
+            containerEl.classList.add('shake');
+        }
+
+        /* ── Word chain logic ── */
         function overlapAppend(current, newWord) {
             const maxK = Math.min(current.length, newWord.length);
             for (let k = maxK; k > 0; k--) {
@@ -236,35 +345,64 @@
             return Math.max(1.2, size).toFixed(2) + 'rem';
         }
 
+        /* ── Typing animation with particles ── */
         function typeAnimate(element, text, fontSize, onComplete) {
             if (animTimer) clearTimeout(animTimer);
             element.innerHTML = '';
             element.style.fontSize = fontSize;
+            currentText = text;
 
             let idx = 0;
+            const CHARS_PER_LINE = 20;
+            let lineLen = 0;
 
             function tick() {
                 if (idx >= text.length) {
                     if (onComplete) onComplete();
                     return;
                 }
+
+                if (lineLen >= CHARS_PER_LINE) {
+                    element.appendChild(document.createElement('br'));
+                    lineLen = 0;
+                }
+
                 const span = document.createElement('span');
                 span.className = 'char';
                 span.textContent = text[idx];
-                span.style.animationDelay = '0s';
                 element.appendChild(span);
+                lineLen++;
                 idx++;
 
+                /* particles at character position */
+                const rect = span.getBoundingClientRect();
+                const canvasRect = canvas.getBoundingClientRect();
+                const cx = rect.left - canvasRect.left + rect.width / 2;
+                const cy = rect.top - canvasRect.top + rect.height / 2;
+                spawnParticles(cx, cy, 6);
+
+                triggerShake();
                 if (navigator.vibrate) navigator.vibrate(10);
-                element.classList.remove('shake');
-                void element.offsetWidth;
-                element.classList.add('shake');
 
                 animTimer = setTimeout(tick, 30);
             }
             tick();
         }
 
+        /* ── Copy ── */
+        document.getElementById('copyBtn').addEventListener('click', function() {
+            if (!currentText) return;
+            navigator.clipboard.writeText(currentText).then(() => {
+                this.textContent = 'COPIED!';
+                this.classList.add('copied');
+                setTimeout(() => {
+                    this.textContent = 'COPY';
+                    this.classList.remove('copied');
+                }, 1500);
+            });
+        });
+
+        /* ── Init ── */
         async function init() {
             try {
                 const res = await fetch('words.json');
@@ -272,6 +410,7 @@
                 wordList = Object.values(startDict).flat();
 
                 const btn = document.getElementById('btn');
+                const copyBtn = document.getElementById('copyBtn');
                 const result = document.getElementById('result');
                 const info = document.getElementById('info');
 
@@ -281,6 +420,7 @@
 
                 btn.addEventListener('click', () => {
                     if (animTimer) clearTimeout(animTimer);
+                    copyBtn.disabled = true;
 
                     const maxWords = parseInt(document.getElementById('maxWords').value) || 30;
                     const maxChars = parseInt(document.getElementById('maxChars').value) || 50;
@@ -288,7 +428,7 @@
                     result.classList.remove('empty');
                     const text = generateChain(maxWords, maxChars);
                     const fontSize = adjustFontSize(text);
-                    typeAnimate(result, text, fontSize);
+                    typeAnimate(result, text, fontSize, () => { copyBtn.disabled = false; });
                 });
             } catch (e) {
                 document.getElementById('result').textContent = '데이터 로드 실패';
