@@ -41,6 +41,12 @@
             transition: font-size 0.15s;
         }
         #result.empty { color: #555; font-size: 1rem; font-weight: 400; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
+        #result.shake { animation: shake 0.05s ease; }
         .controls {
             display: flex;
             justify-content: center;
@@ -180,22 +186,28 @@
             element.textContent = '';
             element.style.fontSize = fontSize;
 
-            const charsPerLine = getCharsPerLine(fontSize);
             let idx = 0;
             let currentLineLen = 0;
+            const CHARS_PER_LINE = 20;
 
             function tick() {
                 if (idx >= text.length) {
                     if (onComplete) onComplete();
                     return;
                 }
-                if (currentLineLen >= charsPerLine) {
+                if (currentLineLen >= CHARS_PER_LINE) {
                     element.textContent += '\n';
                     currentLineLen = 0;
                 }
                 element.textContent += text[idx];
                 currentLineLen++;
                 idx++;
+
+                if (navigator.vibrate) navigator.vibrate(10);
+                element.classList.remove('shake');
+                void element.offsetWidth;
+                element.classList.add('shake');
+
                 animTimer = setTimeout(tick, 30);
             }
             tick();
