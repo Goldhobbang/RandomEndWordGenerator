@@ -14,7 +14,6 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            overflow: hidden;
         }
         body::before {
             content: '';
@@ -47,6 +46,8 @@
             padding: 2.5rem 2rem;
             max-width: 700px;
             width: 100%;
+            max-height: 95vh;
+            overflow-y: auto;
             border: 1px solid rgba(255,255,255,0.04);
             border-radius: 16px;
             background: rgba(255,255,255,0.015);
@@ -373,8 +374,6 @@
                 element.appendChild(span);
                 lineLen++;
                 idx++;
-
-                span.scrollIntoView({ block: 'end', behavior: 'instant' });
 
                 /* particles at character position */
                 const rect = span.getBoundingClientRect();
