@@ -128,11 +128,17 @@
             gap: 0.8rem;
             margin-bottom: 1.5rem;
         }
+        .controls-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 2rem;
+            margin-bottom: 1.8rem;
+        }
         .controls {
             display: flex;
             justify-content: center;
             gap: 2rem;
-            margin-bottom: 1.8rem;
         }
         .control-group {
             display: flex;
@@ -161,6 +167,14 @@
         .control-group input:focus {
             border-color: rgba(138, 124, 200, 0.4);
             box-shadow: 0 0 12px rgba(138, 124, 200, 0.1);
+        }
+        .control-group.checkbox {
+            flex-direction: row;
+            gap: 0.5rem;
+        }
+        .control-group.checkbox input[type="checkbox"] {
+            width: auto;
+            accent-color: #8a7cc8;
         }
         button {
             background: rgba(255,255,255,0.03);
@@ -202,6 +216,13 @@
             border-color: rgba(100, 200, 120, 0.5);
             color: #6c8;
         }
+        #instantBtn {
+            padding: 0.55rem 1.5rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            opacity: 0.5;
+        }
+        #instantBtn:hover { opacity: 0.8; }
         .info {
             margin-top: 1.5rem;
             font-size: 0.7rem;
@@ -217,18 +238,25 @@
             <canvas id="particleCanvas"></canvas>
             <div id="result" class="empty">데이터를 불러오는 중...</div>
         </div>
-        <div class="controls">
-            <div class="control-group">
-                <label>최대 단어 수</label>
-                <input type="number" id="maxWords" value="30" min="1" max="100">
+        <div class="controls-wrapper">
+            <div class="controls">
+                <div class="control-group">
+                    <label>최대 단어 수</label>
+                    <input type="number" id="maxWords" value="30" min="1" max="1000">
+                </div>
+                <div class="control-group">
+                    <label>최대 글자 수</label>
+                    <input type="number" id="maxChars" value="50" min="1" max="5000">
+                </div>
             </div>
-            <div class="control-group">
-                <label>최대 글자 수</label>
-                <input type="number" id="maxChars" value="50" min="1" max="500">
+            <div class="control-group checkbox">
+                <input type="checkbox" id="noLimit">
+                <label for="noLimit">제한 X</label>
             </div>
         </div>
         <div class="actions">
             <button id="btn" disabled>GENERATE</button>
+            <button id="instantBtn" disabled>결과 즉시 보기</button>
             <button id="copyBtn" disabled>COPY</button>
         </div>
         <div class="info" id="info"></div>
@@ -411,6 +439,32 @@
             });
         });
 
+        /* ── show result without animation ── */
+        function showResultImmediate(element, text, fontSize) {
+            if (animTimer) clearTimeout(animTimer);
+            element.innerHTML = '';
+            element.style.fontSize = fontSize;
+            currentText = text;
+
+            const CHARS_PER_LINE = 20;
+            for (let i = 0; i < text.length; i += CHARS_PER_LINE) {
+                if (i > 0) element.appendChild(document.createElement('br'));
+                const span = document.createElement('span');
+                span.className = 'char';
+                span.textContent = text.slice(i, i + CHARS_PER_LINE);
+                element.appendChild(span);
+            }
+        }
+
+        /* ── get values considering no-limit checkbox ── */
+        function getLimits() {
+            const noLimit = document.getElementById('noLimit').checked;
+            return {
+                maxWords: noLimit ? 10000 : parseInt(document.getElementById('maxWords').value) || 30,
+                maxChars: noLimit ? 999999 : parseInt(document.getElementById('maxChars').value) || 50
+            };
+        }
+
         /* ── Init ── */
         async function init() {
             try {
@@ -420,25 +474,35 @@
 
                 const btn = document.getElementById('btn');
                 const copyBtn = document.getElementById('copyBtn');
+                const instantBtn = document.getElementById('instantBtn');
                 const result = document.getElementById('result');
                 const info = document.getElementById('info');
 
                 btn.disabled = false;
+                instantBtn.disabled = false;
                 result.textContent = '버튼을 눌러 생성하세요';
                 info.textContent = `${wordList.length.toLocaleString()}개 단어 로드 완료`;
 
-                btn.addEventListener('click', () => {
+                function doGenerate(animate) {
                     if (animTimer) clearTimeout(animTimer);
                     copyBtn.disabled = true;
 
-                    const maxWords = parseInt(document.getElementById('maxWords').value) || 30;
-                    const maxChars = parseInt(document.getElementById('maxChars').value) || 50;
+                    const { maxWords, maxChars } = getLimits();
 
                     result.classList.remove('empty');
                     const text = generateChain(maxWords, maxChars);
                     const fontSize = adjustFontSize(text);
-                    typeAnimate(result, text, fontSize, () => { copyBtn.disabled = false; });
-                });
+
+                    if (animate) {
+                        typeAnimate(result, text, fontSize, () => { copyBtn.disabled = false; });
+                    } else {
+                        showResultImmediate(result, text, fontSize);
+                        copyBtn.disabled = false;
+                    }
+                }
+
+                btn.addEventListener('click', () => doGenerate(true));
+                instantBtn.addEventListener('click', () => doGenerate(false));
             } catch (e) {
                 document.getElementById('result').textContent = '데이터 로드 실패';
             }
