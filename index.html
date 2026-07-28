@@ -32,7 +32,7 @@
             font-size: 2.2rem;
             font-weight: 700;
             min-height: 3.5rem;
-            line-height: 1.4;
+            line-height: 1.6;
             word-break: keep-all;
             margin-bottom: 2rem;
             color: #fff;
@@ -108,6 +108,7 @@
     <script>
         let startDict = {};
         let wordList = [];
+        let animTimer = null;
 
         function overlapAppend(current, newWord) {
             const maxK = Math.min(current.length, newWord.length);
@@ -159,6 +160,47 @@
             return Math.max(1.2, size).toFixed(2) + 'rem';
         }
 
+        function getCharsPerLine(fontSize) {
+            const px = parseFloat(fontSize) * 16;
+            const charWidth = px * 0.6;
+            return Math.floor(660 / charWidth);
+        }
+
+        function formatText(text, fontSize) {
+            const charsPerLine = getCharsPerLine(fontSize);
+            const lines = [];
+            for (let i = 0; i < text.length; i += charsPerLine) {
+                lines.push(text.slice(i, i + charsPerLine));
+            }
+            return lines.join('\n');
+        }
+
+        function typeAnimate(element, text, fontSize, onComplete) {
+            if (animTimer) clearTimeout(animTimer);
+            element.textContent = '';
+            element.style.fontSize = fontSize;
+
+            const charsPerLine = getCharsPerLine(fontSize);
+            let idx = 0;
+            let currentLineLen = 0;
+
+            function tick() {
+                if (idx >= text.length) {
+                    if (onComplete) onComplete();
+                    return;
+                }
+                if (currentLineLen >= charsPerLine) {
+                    element.textContent += '\n';
+                    currentLineLen = 0;
+                }
+                element.textContent += text[idx];
+                currentLineLen++;
+                idx++;
+                animTimer = setTimeout(tick, 30);
+            }
+            tick();
+        }
+
         async function init() {
             try {
                 const res = await fetch('words.json');
@@ -174,13 +216,15 @@
                 info.textContent = `${wordList.length.toLocaleString()}개 단어 로드 완료`;
 
                 btn.addEventListener('click', () => {
+                    if (animTimer) clearTimeout(animTimer);
+
                     const maxWords = parseInt(document.getElementById('maxWords').value) || 30;
                     const maxChars = parseInt(document.getElementById('maxChars').value) || 50;
 
                     result.classList.remove('empty');
                     const text = generateChain(maxWords, maxChars);
-                    result.textContent = text;
-                    result.style.fontSize = adjustFontSize(text);
+                    const fontSize = adjustFontSize(text);
+                    typeAnimate(result, text, fontSize);
                 });
             } catch (e) {
                 document.getElementById('result').textContent = '데이터 로드 실패';
