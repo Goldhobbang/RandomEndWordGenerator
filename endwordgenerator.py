@@ -3,6 +3,7 @@ import random
 
 # 끝말잇기 생성 설정
 MAX_WORDS = 30           # 생성할 최대 단어 개수
+MAX_CHARS = 50           # 생성할 최대 글자 수
 WORDS_FILE = "words.json"  # 사전 데이터 파일 경로
 
 
@@ -21,18 +22,41 @@ def overlap_append(current, new_word):
     return new_word
 
 
-def generate_chain(word_list, start_dict, count=MAX_WORDS):
+def is_one_shot(word, start_dict):
+    last_char = word[-1]
+    return len(start_dict.get(last_char, [])) == 0
+
+
+def pick_next(result, candidates, start_dict, remaining):
+    non_one_shot = [w for w in candidates if not is_one_shot(w, start_dict)]
+
+    if non_one_shot:
+        pool = non_one_shot
+    else:
+        pool = candidates
+
+    return random.choice(pool)
+
+
+def generate_chain(word_list, start_dict, max_words=MAX_WORDS, max_chars=MAX_CHARS):
     start = random.choice(word_list)
     result = start
     chain = [start]
 
-    for _ in range(count - 1):
+    for i in range(max_words - 1):
         last_char = result[-1]
         candidates = start_dict.get(last_char, [])
         if not candidates:
             break
-        next_word = random.choice(candidates)
-        result += overlap_append(result, next_word)
+
+        remaining = max_words - len(chain)
+        next_word = pick_next(result, candidates, start_dict, remaining)
+        appended = overlap_append(result, next_word)
+
+        if len(result) + len(appended) > max_chars:
+            break
+
+        result += appended
         chain.append(next_word)
 
     return result, chain

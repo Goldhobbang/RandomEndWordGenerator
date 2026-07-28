@@ -37,8 +37,38 @@
             margin-bottom: 2rem;
             color: #fff;
             letter-spacing: 0.05em;
+            text-align: center;
+            transition: font-size 0.15s;
         }
         #result.empty { color: #555; font-size: 1rem; font-weight: 400; }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .control-group label {
+            font-size: 0.7rem;
+            color: #666;
+            letter-spacing: 0.05em;
+        }
+        .control-group input {
+            width: 80px;
+            background: #111;
+            border: 1px solid #333;
+            color: #ccc;
+            padding: 0.4rem 0.5rem;
+            font-size: 0.85rem;
+            text-align: center;
+            outline: none;
+        }
+        .control-group input:focus { border-color: #666; }
         button {
             background: none;
             border: 1px solid #444;
@@ -62,11 +92,20 @@
     <div class="container">
         <h1>RANDOM ENDWORD GENERATOR</h1>
         <div id="result" class="empty">데이터를 불러오는 중...</div>
+        <div class="controls">
+            <div class="control-group">
+                <label>최대 단어 수</label>
+                <input type="number" id="maxWords" value="30" min="1" max="100">
+            </div>
+            <div class="control-group">
+                <label>최대 글자 수</label>
+                <input type="number" id="maxChars" value="50" min="1" max="500">
+            </div>
+        </div>
         <button id="btn" disabled>GENERATE</button>
         <div class="info" id="info"></div>
     </div>
     <script>
-        const MAX_WORDS = 30;
         let startDict = {};
         let wordList = [];
 
@@ -80,20 +119,44 @@
             return newWord;
         }
 
-        function generateChain() {
+        function isOneShot(word) {
+            const lastChar = word[word.length - 1];
+            return !startDict[lastChar] || startDict[lastChar].length === 0;
+        }
+
+        function pickNext(candidates) {
+            const nonOneShot = candidates.filter(w => !isOneShot(w));
+            const pool = nonOneShot.length > 0 ? nonOneShot : candidates;
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+
+        function generateChain(maxWords, maxChars) {
             const start = wordList[Math.floor(Math.random() * wordList.length)];
             let result = start;
             const chain = [start];
 
-            for (let i = 0; i < MAX_WORDS - 1; i++) {
+            for (let i = 0; i < maxWords - 1; i++) {
                 const lastChar = result[result.length - 1];
                 const candidates = startDict[lastChar];
                 if (!candidates || candidates.length === 0) break;
-                const next = candidates[Math.floor(Math.random() * candidates.length)];
-                result += overlapAppend(result, next);
+
+                const next = pickNext(candidates);
+                const appended = overlapAppend(result, next);
+
+                if (result.length + appended.length > maxChars) break;
+
+                result += appended;
                 chain.push(next);
             }
             return result;
+        }
+
+        function adjustFontSize(text) {
+            const len = text.length;
+            if (len <= 10) return '2.2rem';
+            if (len >= 40) return '1.2rem';
+            const size = 2.2 - (len - 10) * (1.0 / 30);
+            return Math.max(1.2, size).toFixed(2) + 'rem';
         }
 
         async function init() {
@@ -111,8 +174,13 @@
                 info.textContent = `${wordList.length.toLocaleString()}개 단어 로드 완료`;
 
                 btn.addEventListener('click', () => {
+                    const maxWords = parseInt(document.getElementById('maxWords').value) || 30;
+                    const maxChars = parseInt(document.getElementById('maxChars').value) || 50;
+
                     result.classList.remove('empty');
-                    result.textContent = generateChain();
+                    const text = generateChain(maxWords, maxChars);
+                    result.textContent = text;
+                    result.style.fontSize = adjustFontSize(text);
                 });
             } catch (e) {
                 document.getElementById('result').textContent = '데이터 로드 실패';
