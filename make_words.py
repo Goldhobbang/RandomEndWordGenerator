@@ -29,6 +29,9 @@ def extract_nouns():
             if len(word) < MIN_WORD_LENGTH:
                 continue
 
+            if ' ' in word or not word.isalpha():
+                continue
+
             pos = None
             pos_feats = entry.get("feat", [])
             if isinstance(pos_feats, dict):
