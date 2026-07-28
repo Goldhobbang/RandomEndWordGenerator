@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random EndWord Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 700px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 400;
+            color: #888;
+            margin-bottom: 2rem;
+            letter-spacing: 0.1em;
+        }
+        #result {
+            font-size: 2.2rem;
+            font-weight: 700;
+            min-height: 3.5rem;
+            line-height: 1.4;
+            word-break: keep-all;
+            margin-bottom: 2rem;
+            color: #fff;
+            letter-spacing: 0.05em;
+        }
+        #result.empty { color: #555; font-size: 1rem; font-weight: 400; }
+        button {
+            background: none;
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 0.7rem 2rem;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.05em;
+        }
+        button:hover { border-color: #fff; color: #fff; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+        .info {
+            margin-top: 1.5rem;
+            font-size: 0.75rem;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RANDOM ENDWORD GENERATOR</h1>
+        <div id="result" class="empty">데이터를 불러오는 중...</div>
+        <button id="btn" disabled>GENERATE</button>
+        <div class="info" id="info"></div>
+    </div>
+    <script>
+        const MAX_WORDS = 30;
+        let startDict = {};
+        let wordList = [];
+
+        function overlapAppend(current, newWord) {
+            const maxK = Math.min(current.length, newWord.length);
+            for (let k = maxK; k > 0; k--) {
+                if (current.endsWith(newWord.slice(0, k))) {
+                    return newWord.slice(k);
+                }
+            }
+            return newWord;
+        }
+
+        function generateChain() {
+            const start = wordList[Math.floor(Math.random() * wordList.length)];
+            let result = start;
+            const chain = [start];
+
+            for (let i = 0; i < MAX_WORDS - 1; i++) {
+                const lastChar = result[result.length - 1];
+                const candidates = startDict[lastChar];
+                if (!candidates || candidates.length === 0) break;
+                const next = candidates[Math.floor(Math.random() * candidates.length)];
+                result += overlapAppend(result, next);
+                chain.push(next);
+            }
+            return result;
+        }
+
+        async function init() {
+            try {
+                const res = await fetch('words.json');
+                startDict = await res.json();
+                wordList = Object.values(startDict).flat();
+
+                const btn = document.getElementById('btn');
+                const result = document.getElementById('result');
+                const info = document.getElementById('info');
+
+                btn.disabled = false;
+                result.textContent = '버튼을 눌러 생성하세요';
+                info.textContent = `${wordList.length.toLocaleString()}개 단어 로드 완료`;
+
+                btn.addEventListener('click', () => {
+                    result.classList.remove('empty');
+                    result.textContent = generateChain();
+                });
+            } catch (e) {
+                document.getElementById('result').textContent = '데이터 로드 실패';
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
