@@ -34,7 +34,7 @@
             min-height: 3.5rem;
             line-height: 1.6;
             word-break: keep-all;
-            white-space: pre-wrap;
+            white-space: normal;
             margin-bottom: 2rem;
             color: #fff;
             letter-spacing: 0.05em;
@@ -167,41 +167,19 @@
             return Math.max(1.2, size).toFixed(2) + 'rem';
         }
 
-        function getCharsPerLine(fontSize) {
-            const px = parseFloat(fontSize) * 16;
-            const charWidth = px * 0.6;
-            return Math.floor(660 / charWidth);
-        }
-
-        function formatText(text, fontSize) {
-            const charsPerLine = getCharsPerLine(fontSize);
-            const lines = [];
-            for (let i = 0; i < text.length; i += charsPerLine) {
-                lines.push(text.slice(i, i + charsPerLine));
-            }
-            return lines.join('\n');
-        }
-
         function typeAnimate(element, text, fontSize, onComplete) {
             if (animTimer) clearTimeout(animTimer);
             element.textContent = '';
             element.style.fontSize = fontSize;
 
             let idx = 0;
-            let currentLineLen = 0;
-            const CHARS_PER_LINE = 20;
 
             function tick() {
                 if (idx >= text.length) {
                     if (onComplete) onComplete();
                     return;
                 }
-                if (currentLineLen >= CHARS_PER_LINE) {
-                    element.textContent += '\n';
-                    currentLineLen = 0;
-                }
                 element.textContent += text[idx];
-                currentLineLen++;
                 idx++;
 
                 if (navigator.vibrate) navigator.vibrate(10);
