@@ -29,17 +29,57 @@
             0% { transform: translate(0, 0) rotate(0deg); }
             100% { transform: translate(3%, -2%) rotate(2deg); }
         }
-        @keyframes screenShake {
+        @keyframes shake-light {
             0%, 100% { transform: translate(0, 0); }
-            10% { transform: translate(-1px, 1px); }
-            20% { transform: translate(1px, -1px); }
+            10% { transform: translate(-0.5px, 0.5px); }
+            30% { transform: translate(0.5px, -0.5px); }
+            50% { transform: translate(-0.5px, 0); }
+            70% { transform: translate(0.5px, 0.5px); }
+            90% { transform: translate(0, -0.5px); }
+        }
+        @keyframes shake-medium {
+            0%, 100% { transform: translate(0, 0); }
+            10% { transform: translate(-2px, 1px); }
+            20% { transform: translate(2px, -1px); }
             30% { transform: translate(-1px, 0); }
             40% { transform: translate(1px, 1px); }
             50% { transform: translate(0, -1px); }
-            60% { transform: translate(-1px, 1px); }
+            60% { transform: translate(-2px, 1px); }
             70% { transform: translate(1px, 0); }
             80% { transform: translate(0, -1px); }
-            90% { transform: translate(1px, 1px); }
+            90% { transform: translate(2px, 1px); }
+        }
+        @keyframes shake-heavy {
+            0%, 100% { transform: translate(0, 0); }
+            5% { transform: translate(-3px, 2px); }
+            10% { transform: translate(3px, -2px); }
+            15% { transform: translate(-2px, -1px); }
+            20% { transform: translate(2px, 1px); }
+            25% { transform: translate(-1px, -2px); }
+            30% { transform: translate(1px, 2px); }
+            35% { transform: translate(-3px, 1px); }
+            40% { transform: translate(3px, -1px); }
+            45% { transform: translate(-1px, -2px); }
+            50% { transform: translate(1px, 2px); }
+            55% { transform: translate(-2px, -1px); }
+            60% { transform: translate(2px, 1px); }
+            65% { transform: translate(-1px, 2px); }
+            70% { transform: translate(1px, -2px); }
+            75% { transform: translate(-3px, 0); }
+            80% { transform: translate(3px, 0); }
+            85% { transform: translate(-2px, 2px); }
+            90% { transform: translate(2px, -2px); }
+            95% { transform: translate(0, 1px); }
+        }
+        @keyframes tremble {
+            0%, 100% { transform: translate(0, 0); }
+            12% { transform: translate(-0.5px, 0.3px); }
+            25% { transform: translate(0.4px, -0.5px); }
+            37% { transform: translate(-0.3px, 0.5px); }
+            50% { transform: translate(0.5px, -0.3px); }
+            62% { transform: translate(-0.4px, 0.4px); }
+            75% { transform: translate(0.3px, -0.5px); }
+            87% { transform: translate(-0.5px, 0.2px); }
         }
         .container {
             text-align: center;
@@ -55,6 +95,30 @@
             display: flex;
             flex-direction: column;
         }
+        .flash-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0);
+            pointer-events: none;
+            z-index: 9998;
+        }
+        .flash-overlay.flash {
+            animation: flashPulse 0.07s ease forwards;
+        }
+        @keyframes flashPulse {
+            0% { background: rgba(255, 255, 255, 0); }
+            40% { background: rgba(255, 255, 255, 0.12); }
+            100% { background: rgba(255, 255, 255, 0); }
+        }
+        #container.glow {
+            animation: glowPulse 0.4s ease forwards;
+        }
+        @keyframes glowPulse {
+            0% { box-shadow: 0 0 0px rgba(138, 124, 200, 0); }
+            30% { box-shadow: 0 0 40px rgba(138, 124, 200, 0.5), inset 0 0 30px rgba(138, 124, 200, 0.1); }
+            100% { box-shadow: 0 0 0px rgba(138, 124, 200, 0); }
+        }
         .result-wrap {
             position: relative;
             flex: 1;
@@ -63,7 +127,33 @@
             margin-bottom: 1.5rem;
         }
         .container.shake {
-            animation: screenShake 0.15s ease;
+            animation: none;
+        }
+        #container.shake-light {
+            animation: shake-light 0.08s ease;
+        }
+        #container.shake-medium {
+            animation: shake-medium 0.12s ease;
+        }
+        #container.shake-heavy {
+            animation: shake-heavy 0.2s ease;
+        }
+        #container.shake-light::before {
+            animation: tremble 0.05s infinite alternate;
+        }
+        #container.shake-medium::before {
+            animation: tremble 0.04s infinite alternate;
+        }
+        #container.shake-heavy::before {
+            animation: tremble 0.03s infinite alternate;
+        }
+        #container::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            pointer-events: none;
+            z-index: -1;
         }
         h1 {
             font-size: 1.3rem;
@@ -106,6 +196,15 @@
             position: relative;
             z-index: 1;
         }
+        #result.typing {
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+            animation: resultColorShift 0.3s ease infinite alternate;
+        }
+        @keyframes resultColorShift {
+            0% { color: #fff; }
+            50% { color: #ffcc00; }
+            100% { color: #fff; }
+        }
         #result.empty {
             color: #444;
             font-size: 0.95rem;
@@ -117,10 +216,46 @@
             opacity: 0;
             animation: charPop 0.3s ease forwards;
         }
+        #result .char.glitch {
+            text-shadow: 2px 0 #ff0040, -2px 0 #00ff80, 0 0 4px rgba(255, 0, 64, 0.4);
+        }
+        #result.slide-out {
+            animation: slideOut 0.08s ease forwards;
+        }
+        #result.slide-in {
+            animation: slideIn 0.12s ease forwards;
+        }
+        #result .char.glitch {
+            text-shadow: 2px 0 #ff0040, -2px 0 #00ff80, 0 0 4px rgba(255, 0, 64, 0.4);
+        }
         @keyframes charPop {
             0% { opacity: 0; transform: scale(1.6) translateY(-4px); filter: blur(4px); }
             60% { opacity: 1; transform: scale(1.05) translateY(0); filter: blur(0); }
             100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+        }
+        @keyframes slideOut {
+            0% { opacity: 1; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(-100%); }
+        }
+        @keyframes slideIn {
+            0% { opacity: 0; transform: translateX(100%); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        #container.glitching::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+            z-index: 10;
+            animation: sliceEffect 0.15s ease 3;
+        }
+        @keyframes sliceEffect {
+            0% { transform: translateX(0); opacity: 1; }
+            33% { transform: translateX(calc(-100% + 10px)); opacity: 0.6; }
+            66% { transform: translateX(calc(100% - 10px)); opacity: 0.8; }
+            100% { transform: translateX(0); opacity: 0; }
         }
         .actions {
             display: flex;
@@ -233,6 +368,7 @@
 </head>
 <body>
     <div class="container" id="container">
+        <div id="flashOverlay" class="flash-overlay"></div>
         <h1>RANDOM ENDWORD GENERATOR</h1>
         <div class="result-wrap">
             <canvas id="particleCanvas"></canvas>
@@ -267,7 +403,7 @@
         let animTimer = null;
         let currentText = '';
 
-        const COLORS = ['#5b9bd5', '#8a7cc8', '#d55b5b', '#5bd5a8', '#d5c85b', '#d58a5b'];
+        const COLORS = ['#5b9bd5', '#8a7cc8', '#d55b5b', '#5bd5a8', '#d5c85b', '#d58a5b', '#ff4444', '#ffaa00', '#ff00ff'];
 
         /* ── Particles ── */
         const canvas = document.getElementById('particleCanvas');
@@ -283,18 +419,60 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
+        const MAX_PARTICLES_PER_FLASH = 18;
+
+        function particleCountForText(textLength) {
+            const base = 6;
+            const scale = Math.min(textLength / 20, 1);
+            return Math.floor(base + (MAX_PARTICLES_PER_FLASH - base) * scale);
+        }
+
         function spawnParticles(x, y, count) {
+            count = count || particleCountForText(currentText.length);
             for (let i = 0; i < count; i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const speed = 1.5 + Math.random() * 4;
+                const isSpark = Math.random() < 0.4;
+                const isEmber = Math.random() < 0.3;
+                const isDebris = !isSpark && !isEmber;
+                const speed = isSpark ? (2 + Math.random() * 6) : (0.5 + Math.random() * 2);
+                const decay = isSpark ? 0.02 + Math.random() * 0.02 : (isDebris ? 0.005 + Math.random() * 0.01 : 0.01 + Math.random() * 0.02);
+                const size = isSpark ? (1 + Math.random() * 1.5) : (isDebris ? (3 + Math.random() * 5) : (1.5 + Math.random() * 2.5));
+                const vy = isEmber ? -(0.5 + Math.random() * 1.5) : (Math.sin(angle) * speed);
+                const vx = Math.cos(angle) * (isEmber ? (0.3 + Math.random() * 0.5) : speed);
+                particles.push({
+                    x, y,
+                    vx, vy,
+                    life: 1,
+                    decay,
+                    size,
+                    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+                    type: isSpark ? 'spark' : (isEmber ? 'ember' : 'debris'),
+                    gravity: isDebris ? 0.06 : (isSpark ? 0.02 : 0.04)
+                });
+            }
+            if (!rafId) tickParticles();
+        }
+
+        function burstParticles(x, y, count) {
+            count = count || particleCountForText(currentText.length);
+            for (let i = 0; i < count; i++) {
+                const angle = (i / count) * Math.PI * 2;
+                const isSpark = Math.random() < 0.5;
+                const isEmber = Math.random() < 0.3;
+                const isDebris = !isSpark && !isEmber;
+                const speed = isSpark ? (2 + Math.random() * 4) : (0.5 + Math.random() * 1.5);
+                const decay = isSpark ? 0.015 + Math.random() * 0.015 : (isDebris ? 0.005 + Math.random() * 0.008 : 0.01 + Math.random() * 0.015);
+                const size = isSpark ? (1 + Math.random() * 1.5) : (isDebris ? (3 + Math.random() * 4) : (1.5 + Math.random() * 2));
                 particles.push({
                     x, y,
                     vx: Math.cos(angle) * speed,
                     vy: Math.sin(angle) * speed,
                     life: 1,
-                    decay: 0.015 + Math.random() * 0.02,
-                    size: 2 + Math.random() * 3,
-                    color: COLORS[Math.floor(Math.random() * COLORS.length)]
+                    decay,
+                    size,
+                    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+                    type: isSpark ? 'spark' : (isEmber ? 'ember' : 'debris'),
+                    gravity: isDebris ? 0.05 : (isSpark ? 0.01 : 0.03)
                 });
             }
             if (!rafId) tickParticles();
@@ -306,13 +484,14 @@
                 const p = particles[i];
                 p.x += p.vx;
                 p.y += p.vy;
-                p.vy += 0.08;
+                p.vy += p.gravity;
                 p.life -= p.decay;
                 if (p.life <= 0) { particles.splice(i, 1); continue; }
                 ctx.globalAlpha = p.life;
                 ctx.fillStyle = p.color;
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                const drawSize = p.type === 'spark' ? p.size : (p.size * p.life);
+                ctx.arc(p.x, p.y, drawSize, 0, Math.PI * 2);
                 ctx.fill();
             }
             ctx.globalAlpha = 1;
@@ -325,10 +504,18 @@
 
         /* ── Screen shake ── */
         const containerEl = document.getElementById('container');
-        function triggerShake() {
-            containerEl.classList.remove('shake');
-            void containerEl.offsetWidth;
-            containerEl.classList.add('shake');
+        function setShakeLevel(progress) {
+            containerEl.classList.remove('shake-light', 'shake-medium', 'shake-heavy');
+            if (progress < 0.3) {
+                containerEl.classList.add('shake-light');
+            } else if (progress < 0.6) {
+                containerEl.classList.add('shake-medium');
+            } else {
+                containerEl.classList.add('shake-heavy');
+            }
+        }
+        function clearShake() {
+            containerEl.classList.remove('shake-light', 'shake-medium', 'shake-heavy');
         }
 
         /* ── Word chain logic ── */
@@ -388,13 +575,17 @@
             element.innerHTML = '';
             element.style.fontSize = fontSize;
             currentText = text;
+            result.classList.add('typing');
 
             let idx = 0;
             const CHARS_PER_LINE = 20;
             let lineLen = 0;
+            const totalLen = text.length;
 
             function tick() {
                 if (idx >= text.length) {
+                    clearShake();
+                    result.classList.remove('typing');
                     if (onComplete) onComplete();
                     return;
                 }
@@ -406,22 +597,52 @@
 
                 const span = document.createElement('span');
                 span.className = 'char';
+                if (idx % 2 === 1) {
+                    span.classList.add('glitch');
+                    setTimeout(() => span.classList.remove('glitch'), 100 + Math.random() * 150);
+                }
                 span.textContent = text[idx];
                 element.appendChild(span);
                 lineLen++;
                 idx++;
 
-                /* particles at character position */
-                const rect = span.getBoundingClientRect();
-                const canvasRect = canvas.getBoundingClientRect();
-                const cx = rect.left - canvasRect.left + rect.width / 2;
-                const cy = rect.top - canvasRect.top + rect.height / 2;
-                spawnParticles(cx, cy, 6);
+                setShakeLevel(idx / text.length);
 
-                triggerShake();
+                if (idx === 1) {
+                    const rect = span.getBoundingClientRect();
+                    const canvasRect = canvas.getBoundingClientRect();
+                    const cx = rect.left - canvasRect.left + rect.width / 2;
+                    const cy = rect.top - canvasRect.top + rect.height / 2;
+                    burstParticles(cx, cy, 12);
+                } else {
+                    const rect = span.getBoundingClientRect();
+                    const canvasRect = canvas.getBoundingClientRect();
+                    const cx = rect.left - canvasRect.left + rect.width / 2;
+                    const cy = rect.top - canvasRect.top + rect.height / 2;
+                    spawnParticles(cx, cy);
+                }
+
                 if (navigator.vibrate) navigator.vibrate(10);
 
-                animTimer = setTimeout(tick, 30);
+                let delay;
+                if (totalLen <= 10) {
+                    delay = 25 + Math.random() * 15;
+                } else {
+                    const progress = idx / totalLen;
+                    if (progress < 0.3) {
+                        delay = 12 + Math.random() * 20;
+                    } else if (progress < 0.5) {
+                        delay = 30 + Math.random() * 20;
+                    } else if (progress < 0.7) {
+                        delay = 12 + Math.random() * 15;
+                    } else if (progress < 0.85) {
+                        delay = 10 + Math.random() * 10;
+                    } else {
+                        delay = 8 + Math.random() * 8;
+                    }
+                }
+
+                animTimer = setTimeout(tick, delay);
             }
             tick();
         }
@@ -442,9 +663,13 @@
         /* ── show result without animation ── */
         function showResultImmediate(element, text, fontSize) {
             if (animTimer) clearTimeout(animTimer);
+            element.classList.remove('slide-out', 'slide-in');
             element.innerHTML = '';
             element.style.fontSize = fontSize;
             currentText = text;
+
+            element.classList.add('slide-in');
+            setTimeout(() => element.classList.remove('slide-in'), 120);
 
             const CHARS_PER_LINE = 20;
             for (let i = 0; i < text.length; i += CHARS_PER_LINE) {
@@ -486,18 +711,64 @@
                 function doGenerate(animate) {
                     if (animTimer) clearTimeout(animTimer);
                     copyBtn.disabled = true;
+                    containerEl.classList.remove('glow');
+                    containerEl.classList.remove('glitching');
 
                     const { maxWords, maxChars } = getLimits();
 
                     result.classList.remove('empty');
-                    const text = generateChain(maxWords, maxChars);
-                    const fontSize = adjustFontSize(text);
+                    result.classList.remove('slide-in');
 
-                    if (animate) {
-                        typeAnimate(result, text, fontSize, () => { copyBtn.disabled = false; });
+                    if (currentText && result.textContent.trim() && currentText !== result.textContent.trim()) {
+                        result.classList.add('slide-out');
+                        setTimeout(() => {
+                            result.classList.remove('slide-out');
+                            const text = generateChain(maxWords, maxChars);
+                            const fontSize = adjustFontSize(text);
+
+                            if (animate) {
+                                const flashOverlay = document.getElementById('flashOverlay');
+                                flashOverlay.classList.add('flash');
+                                containerEl.classList.add('glow');
+                                containerEl.classList.add('glitching');
+                                setTimeout(() => {
+                                    flashOverlay.classList.remove('flash');
+                                }, 70);
+                                setTimeout(() => {
+                                    containerEl.classList.remove('glitching');
+                                }, 500);
+                                typeAnimate(result, text, fontSize, () => {
+                                    clearShake();
+                                    copyBtn.disabled = false;
+                                });
+                            } else {
+                                showResultImmediate(result, text, fontSize);
+                                copyBtn.disabled = false;
+                            }
+                        }, 80);
                     } else {
-                        showResultImmediate(result, text, fontSize);
-                        copyBtn.disabled = false;
+                        const text = generateChain(maxWords, maxChars);
+                        const fontSize = adjustFontSize(text);
+
+                        if (animate) {
+                            const flashOverlay = document.getElementById('flashOverlay');
+                            flashOverlay.classList.add('flash');
+                            containerEl.classList.add('glow');
+                            containerEl.classList.add('glitching');
+                            setTimeout(() => {
+                                flashOverlay.classList.remove('flash');
+                            }, 70);
+                            setTimeout(() => {
+                                containerEl.classList.remove('glitching');
+                            }, 500);
+                            typeAnimate(result, text, fontSize, () => {
+                                clearShake();
+                                copyBtn.disabled = false;
+                            });
+                        } else {
+                            showResultImmediate(result, text, fontSize);
+                            copyBtn.disabled = false;
+                        }
                     }
                 }
 
