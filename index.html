@@ -29,33 +29,6 @@
             0% { transform: translate(0, 0) rotate(0deg); }
             100% { transform: translate(3%, -2%) rotate(2deg); }
         }
-        @keyframes shake-light {
-            0%, 100% { transform: translate(0, 0); }
-            25% { transform: translate(-0.3px, 0.2px); }
-            50% { transform: translate(0.2px, -0.3px); }
-            75% { transform: translate(0.3px, 0.1px); }
-        }
-        @keyframes shake-medium {
-            0%, 100% { transform: translate(0, 0); }
-            20% { transform: translate(-1px, 0.5px); }
-            40% { transform: translate(0.8px, -0.6px); }
-            60% { transform: translate(-0.6px, 0.3px); }
-            80% { transform: translate(0.5px, 0.4px); }
-        }
-        @keyframes shake-heavy {
-            0%, 100% { transform: translate(0, 0); }
-            15% { transform: translate(-1.5px, 1px); }
-            30% { transform: translate(1.2px, -0.8px); }
-            45% { transform: translate(-0.9px, 0.5px); }
-            60% { transform: translate(0.7px, 0.6px); }
-            75% { transform: translate(-0.5px, -0.7px); }
-        }
-        @keyframes tremble {
-            0%, 100% { transform: translate(0, 0); }
-            25% { transform: translate(-0.2px, 0.15px); }
-            50% { transform: translate(0.15px, -0.2px); }
-            75% { transform: translate(-0.1px, 0.1px); }
-        }
         .container {
             text-align: center;
             padding: 2.5rem 2rem;
@@ -76,27 +49,6 @@
             overflow-y: auto;
             min-height: 0;
             margin-bottom: 1.5rem;
-        }
-        .container.shake {
-            animation: none;
-        }
-        #container.shake-light {
-            animation: shake-light 0.12s ease;
-        }
-        #container.shake-medium {
-            animation: shake-medium 0.18s ease;
-        }
-        #container.shake-heavy {
-            animation: shake-heavy 0.25s ease;
-        }
-        #container.shake-light::before {
-            animation: tremble 0.08s infinite alternate;
-        }
-        #container.shake-medium::before {
-            animation: tremble 0.07s infinite alternate;
-        }
-        #container.shake-heavy::before {
-            animation: tremble 0.06s infinite alternate;
         }
         #container::before {
             content: '';
@@ -148,13 +100,7 @@
             z-index: 1;
         }
         #result.typing {
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
-            animation: resultColorShift 0.3s ease infinite alternate;
-        }
-        @keyframes resultColorShift {
-            0% { color: #fff; }
-            50% { color: #ffcc00; }
-            100% { color: #fff; }
+            text-shadow: 0 0 4px rgba(255, 255, 255, 0.15);
         }
         #result.empty {
             color: #444;
@@ -168,16 +114,13 @@
             animation: charPop 0.3s ease forwards;
         }
         #result .char.glitch {
-            text-shadow: 2px 0 #ff0040, -2px 0 #00ff80, 0 0 4px rgba(255, 0, 64, 0.4);
+            text-shadow: 1px 0 rgba(255, 0, 64, 0.3), -1px 0 rgba(0, 255, 128, 0.3);
         }
         #result.slide-out {
             animation: slideOut 0.08s ease forwards;
         }
         #result.slide-in {
             animation: slideIn 0.12s ease forwards;
-        }
-        #result .char.glitch {
-            text-shadow: 2px 0 #ff0040, -2px 0 #00ff80, 0 0 4px rgba(255, 0, 64, 0.4);
         }
         @keyframes charPop {
             0% { opacity: 0; transform: scale(1.6) translateY(-4px); filter: blur(4px); }
@@ -197,15 +140,14 @@
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.02);
             pointer-events: none;
             z-index: 10;
-            animation: sliceEffect 0.15s ease 3;
+            animation: sliceEffect 0.2s ease 2;
         }
         @keyframes sliceEffect {
-            0% { transform: translateX(0); opacity: 1; }
-            33% { transform: translateX(calc(-100% + 10px)); opacity: 0.6; }
-            66% { transform: translateX(calc(100% - 10px)); opacity: 0.8; }
+            0% { transform: translateX(0); opacity: 0.5; }
+            50% { transform: translateX(calc(50% - 5px)); opacity: 0.3; }
             100% { transform: translateX(0); opacity: 0; }
         }
         .actions {
@@ -452,22 +394,6 @@
             }
         }
 
-        /* ── Screen shake ── */
-        const containerEl = document.getElementById('container');
-        function setShakeLevel(progress) {
-            containerEl.classList.remove('shake-light', 'shake-medium', 'shake-heavy');
-            if (progress < 0.3) {
-                containerEl.classList.add('shake-light');
-            } else if (progress < 0.6) {
-                containerEl.classList.add('shake-medium');
-            } else {
-                containerEl.classList.add('shake-heavy');
-            }
-        }
-        function clearShake() {
-            containerEl.classList.remove('shake-light', 'shake-medium', 'shake-heavy');
-        }
-
         /* ── Word chain logic ── */
         function overlapAppend(current, newWord) {
             const maxK = Math.min(current.length, newWord.length);
@@ -534,7 +460,6 @@
 
             function tick() {
                 if (idx >= text.length) {
-                    clearShake();
                     result.classList.remove('typing');
                     if (onComplete) onComplete();
                     return;
@@ -547,16 +472,15 @@
 
                 const span = document.createElement('span');
                 span.className = 'char';
-                if (idx % 2 === 1) {
+                if (idx % 4 === 1) {
                     span.classList.add('glitch');
-                    setTimeout(() => span.classList.remove('glitch'), 100 + Math.random() * 150);
+                    setTimeout(() => span.classList.remove('glitch'), 60 + Math.random() * 80);
                 }
                 span.textContent = text[idx];
                 element.appendChild(span);
                 lineLen++;
                 idx++;
 
-                setShakeLevel(idx / text.length);
 
                 if (idx === 1) {
                     const rect = span.getBoundingClientRect();
@@ -572,7 +496,6 @@
                     spawnParticles(cx, cy);
                 }
 
-                if (navigator.vibrate) navigator.vibrate(10);
 
                 let delay;
                 if (totalLen <= 10) {
@@ -661,6 +584,7 @@
                 function doGenerate(animate) {
                     if (animTimer) clearTimeout(animTimer);
                     copyBtn.disabled = true;
+                    const containerEl = document.getElementById('container');
                     containerEl.classList.remove('glitching');
 
                     const { maxWords, maxChars } = getLimits();
@@ -679,9 +603,8 @@
                                 containerEl.classList.add('glitching');
                                 setTimeout(() => {
                                     containerEl.classList.remove('glitching');
-                                }, 500);
+                                }, 300);
                                 typeAnimate(result, text, fontSize, () => {
-                                    clearShake();
                                     copyBtn.disabled = false;
                                 });
                             } else {
@@ -697,9 +620,8 @@
                                 containerEl.classList.add('glitching');
                                 setTimeout(() => {
                                     containerEl.classList.remove('glitching');
-                                }, 500);
+                                }, 300);
                                 typeAnimate(result, text, fontSize, () => {
-                                clearShake();
                                 copyBtn.disabled = false;
                             });
                         } else {
