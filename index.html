@@ -95,30 +95,6 @@
             display: flex;
             flex-direction: column;
         }
-        .flash-overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(255, 255, 255, 0);
-            pointer-events: none;
-            z-index: 9998;
-        }
-        .flash-overlay.flash {
-            animation: flashPulse 0.07s ease forwards;
-        }
-        @keyframes flashPulse {
-            0% { background: rgba(255, 255, 255, 0); }
-            40% { background: rgba(255, 255, 255, 0.12); }
-            100% { background: rgba(255, 255, 255, 0); }
-        }
-        #container.glow {
-            animation: glowPulse 0.4s ease forwards;
-        }
-        @keyframes glowPulse {
-            0% { box-shadow: 0 0 0px rgba(138, 124, 200, 0); }
-            30% { box-shadow: 0 0 40px rgba(138, 124, 200, 0.5), inset 0 0 30px rgba(138, 124, 200, 0.1); }
-            100% { box-shadow: 0 0 0px rgba(138, 124, 200, 0); }
-        }
         .result-wrap {
             position: relative;
             flex: 1;
@@ -368,7 +344,6 @@
 </head>
 <body>
     <div class="container" id="container">
-        <div id="flashOverlay" class="flash-overlay"></div>
         <h1>RANDOM ENDWORD GENERATOR</h1>
         <div class="result-wrap">
             <canvas id="particleCanvas"></canvas>
@@ -711,7 +686,6 @@
                 function doGenerate(animate) {
                     if (animTimer) clearTimeout(animTimer);
                     copyBtn.disabled = true;
-                    containerEl.classList.remove('glow');
                     containerEl.classList.remove('glitching');
 
                     const { maxWords, maxChars } = getLimits();
@@ -727,13 +701,7 @@
                             const fontSize = adjustFontSize(text);
 
                             if (animate) {
-                                const flashOverlay = document.getElementById('flashOverlay');
-                                flashOverlay.classList.add('flash');
-                                containerEl.classList.add('glow');
                                 containerEl.classList.add('glitching');
-                                setTimeout(() => {
-                                    flashOverlay.classList.remove('flash');
-                                }, 70);
                                 setTimeout(() => {
                                     containerEl.classList.remove('glitching');
                                 }, 500);
@@ -751,17 +719,11 @@
                         const fontSize = adjustFontSize(text);
 
                         if (animate) {
-                            const flashOverlay = document.getElementById('flashOverlay');
-                            flashOverlay.classList.add('flash');
-                            containerEl.classList.add('glow');
-                            containerEl.classList.add('glitching');
-                            setTimeout(() => {
-                                flashOverlay.classList.remove('flash');
-                            }, 70);
-                            setTimeout(() => {
-                                containerEl.classList.remove('glitching');
-                            }, 500);
-                            typeAnimate(result, text, fontSize, () => {
+                                containerEl.classList.add('glitching');
+                                setTimeout(() => {
+                                    containerEl.classList.remove('glitching');
+                                }, 500);
+                                typeAnimate(result, text, fontSize, () => {
                                 clearShake();
                                 copyBtn.disabled = false;
                             });
