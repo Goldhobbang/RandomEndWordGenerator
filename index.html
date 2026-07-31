@@ -413,14 +413,44 @@
             return !startDict[lastChar] || startDict[lastChar].length === 0;
         }
 
-        function pickNext(candidates) {
+        function compareWords(a, b) {
+            return a < b ? -1 : a > b ? 1 : 0;
+        }
+
+        function binarySearchWord(sortedWords, word) {
+            let lo = 0, hi = sortedWords.length - 1;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                const cmp = compareWords(word, sortedWords[mid]);
+                if (cmp === 0) return mid;
+                if (cmp < 0) hi = mid - 1;
+                else lo = mid + 1;
+            }
+            return -1;
+        }
+
+        function insertWordSorted(sortedWords, word) {
+            let lo = 0, hi = sortedWords.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >> 1;
+                if (compareWords(word, sortedWords[mid]) < 0) hi = mid;
+                else lo = mid + 1;
+            }
+            sortedWords.splice(lo, 0, word);
+        }
+
+        function pickNext(candidates, usedWords) {
             const nonOneShot = candidates.filter(w => !isOneShot(w));
-            const pool = nonOneShot.length > 0 ? nonOneShot : candidates;
+            let pool = nonOneShot.length > 0 ? nonOneShot : candidates;
+            pool = pool.filter(w => binarySearchWord(usedWords, w) === -1);
+            if (pool.length === 0) return null;
             return pool[Math.floor(Math.random() * pool.length)];
         }
 
         function generateChain(maxWords, maxChars) {
+            const usedWords = [];
             const start = wordList[Math.floor(Math.random() * wordList.length)];
+            insertWordSorted(usedWords, start);
             let result = start;
             const chain = [start];
 
@@ -429,13 +459,16 @@
                 const candidates = startDict[lastChar];
                 if (!candidates || candidates.length === 0) break;
 
-                const next = pickNext(candidates);
+                const next = pickNext(candidates, usedWords);
+                if (!next) break;
+
                 const appended = overlapAppend(result, next);
 
                 if (result.length + appended.length > maxChars) break;
 
                 result += appended;
                 chain.push(next);
+                insertWordSorted(usedWords, next);
             }
             return { text: result, chain };
         }

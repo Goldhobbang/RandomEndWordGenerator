@@ -1,3 +1,4 @@
+import bisect
 import json
 import random
 
@@ -27,19 +28,31 @@ def is_one_shot(word, start_dict):
     return len(start_dict.get(last_char, [])) == 0
 
 
-def pick_next(result, candidates, start_dict, remaining):
+def is_used(sorted_words, word):
+    i = bisect.bisect_left(sorted_words, word)
+    return i < len(sorted_words) and sorted_words[i] == word
+
+
+def pick_next(candidates, start_dict, used_words):
     non_one_shot = [w for w in candidates if not is_one_shot(w, start_dict)]
 
     if non_one_shot:
         pool = non_one_shot
     else:
-        pool = candidates
+        pool = list(candidates)
+
+    pool = [w for w in pool if not is_used(used_words, w)]
+
+    if not pool:
+        return None
 
     return random.choice(pool)
 
 
 def generate_chain(word_list, start_dict, max_words=MAX_WORDS, max_chars=MAX_CHARS):
+    used_words = []
     start = random.choice(word_list)
+    bisect.insort(used_words, start)
     result = start
     chain = [start]
 
@@ -49,8 +62,9 @@ def generate_chain(word_list, start_dict, max_words=MAX_WORDS, max_chars=MAX_CHA
         if not candidates:
             break
 
-        remaining = max_words - len(chain)
-        next_word = pick_next(result, candidates, start_dict, remaining)
+        next_word = pick_next(candidates, start_dict, used_words)
+        if next_word is None:
+            break
         appended = overlap_append(result, next_word)
 
         if len(result) + len(appended) > max_chars:
@@ -58,6 +72,7 @@ def generate_chain(word_list, start_dict, max_words=MAX_WORDS, max_chars=MAX_CHA
 
         result += appended
         chain.append(next_word)
+        bisect.insort(used_words, next_word)
 
     return result, chain
 
