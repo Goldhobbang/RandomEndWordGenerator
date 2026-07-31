@@ -257,6 +257,8 @@
             color: #3a3a3a;
             letter-spacing: 0.05em;
         }
+        #chainStatus.valid { color: #6c8; }
+        #chainStatus.invalid { color: #e88; }
     </style>
 </head>
 <body>
@@ -288,6 +290,7 @@
             <button id="copyBtn" disabled>COPY</button>
         </div>
         <div class="info" id="info"></div>
+        <div class="info" id="chainStatus"></div>
     </div>
     <script>
         let startDict = {};
@@ -434,7 +437,38 @@
                 result += appended;
                 chain.push(next);
             }
-            return result;
+            return { text: result, chain };
+        }
+
+        function validateChain(chain) {
+            const errors = [];
+            if (chain.length < 2) errors.push('단어가 2개 이상 필요합니다');
+            for (let i = 1; i < chain.length; i++) {
+                const prev = chain[i - 1], curr = chain[i];
+                if (curr[0] !== prev[prev.length - 1]) {
+                    errors.push(`'${prev}'(${prev[prev.length - 1]}) → '${curr}'(${curr[0]}) 연결 오류`);
+                }
+            }
+            const seen = new Set();
+            for (const w of chain) {
+                if (seen.has(w)) errors.push(`'${w}' 중복 사용`);
+                seen.add(w);
+            }
+            return errors;
+        }
+
+        function showChainStatus(chain) {
+            const el = document.getElementById('chainStatus');
+            const errors = validateChain(chain);
+            if (errors.length === 0) {
+                el.textContent = `끝말잇기 검사: 유효 (${chain.length}단어)`;
+                el.classList.add('valid');
+                el.classList.remove('invalid');
+            } else {
+                el.textContent = `끝말잇기 검사: 오류 ${errors.length}건 — ${errors.slice(0, 3).join(' / ')}`;
+                el.classList.add('invalid');
+                el.classList.remove('valid');
+            }
         }
 
         function adjustFontSize(text) {
@@ -596,7 +630,7 @@
                         result.classList.add('slide-out');
                         setTimeout(() => {
                             result.classList.remove('slide-out');
-                            const text = generateChain(maxWords, maxChars);
+                            const { text, chain } = generateChain(maxWords, maxChars);
                             const fontSize = adjustFontSize(text);
 
                             if (animate) {
@@ -605,15 +639,17 @@
                                     containerEl.classList.remove('glitching');
                                 }, 300);
                                 typeAnimate(result, text, fontSize, () => {
+                                    showChainStatus(chain);
                                     copyBtn.disabled = false;
                                 });
                             } else {
                                 showResultImmediate(result, text, fontSize);
+                                showChainStatus(chain);
                                 copyBtn.disabled = false;
                             }
                         }, 80);
                     } else {
-                        const text = generateChain(maxWords, maxChars);
+                        const { text, chain } = generateChain(maxWords, maxChars);
                         const fontSize = adjustFontSize(text);
 
                         if (animate) {
@@ -622,10 +658,12 @@
                                     containerEl.classList.remove('glitching');
                                 }, 300);
                                 typeAnimate(result, text, fontSize, () => {
+                                showChainStatus(chain);
                                 copyBtn.disabled = false;
                             });
                         } else {
                             showResultImmediate(result, text, fontSize);
+                            showChainStatus(chain);
                             copyBtn.disabled = false;
                         }
                     }
