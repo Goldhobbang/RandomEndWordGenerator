@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>커스텀 단어 관리 — EndWord</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #050508;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(ellipse at 30% 50%, rgba(88, 40, 180, 0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 50%, rgba(40, 100, 180, 0.06) 0%, transparent 50%);
+            animation: bgDrift 20s ease-in-out infinite alternate;
+            z-index: -1;
+        }
+        @keyframes bgDrift {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(3%, -2%) rotate(2deg); }
+        }
+        .container {
+            max-width: 640px;
+            width: 100%;
+            padding: 2.5rem 2rem;
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: 16px;
+            background: rgba(255,255,255,0.015);
+            backdrop-filter: blur(20px);
+        }
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            font-size: 1.15rem;
+            font-weight: 300;
+            letter-spacing: 0.22em;
+            background: linear-gradient(135deg, #8a7cc8, #5b9bd5, #8a7cc8);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: titleShift 6s ease-in-out infinite alternate;
+        }
+        @keyframes titleShift {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+        a.nav {
+            font-size: 0.75rem;
+            color: #888;
+            text-decoration: none;
+            letter-spacing: 0.1em;
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        a.nav:hover {
+            color: #ddd;
+            border-color: rgba(138, 124, 200, 0.5);
+        }
+        .input-row {
+            display: flex;
+            gap: 0.6rem;
+            margin-bottom: 0.4rem;
+        }
+        .input-row input {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #e0e0e0;
+            padding: 0.7rem 0.8rem;
+            font-size: 0.95rem;
+            outline: none;
+            border-radius: 6px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .input-row input:focus {
+            border-color: rgba(138, 124, 200, 0.4);
+            box-shadow: 0 0 12px rgba(138, 124, 200, 0.1);
+        }
+        .hint {
+            font-size: 0.7rem;
+            color: #555;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.5rem;
+        }
+        .error {
+            font-size: 0.75rem;
+            color: #e88;
+            min-height: 1.2em;
+            margin-bottom: 0.8rem;
+            letter-spacing: 0.03em;
+        }
+        .search-row {
+            margin-bottom: 1rem;
+        }
+        .search-row input {
+            width: 100%;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #e0e0e0;
+            padding: 0.55rem 0.8rem;
+            font-size: 0.85rem;
+            outline: none;
+            border-radius: 6px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .search-row input:focus {
+            border-color: rgba(138, 124, 200, 0.4);
+            box-shadow: 0 0 12px rgba(138, 124, 200, 0.1);
+        }
+        .meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: #555;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.8rem;
+        }
+        .list {
+            list-style: none;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.01);
+            min-height: 6rem;
+        }
+        .empty-state {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #444;
+            font-size: 0.85rem;
+            letter-spacing: 0.03em;
+        }
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.7rem 0.9rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: background 0.2s;
+        }
+        .item:last-child { border-bottom: none; }
+        .item:hover { background: rgba(255,255,255,0.02); }
+        .item .word {
+            flex: 1;
+            font-size: 0.95rem;
+            letter-spacing: 0.05em;
+            color: #e0e0e0;
+            word-break: break-all;
+        }
+        .item .word.editing {
+            display: flex;
+            gap: 0.4rem;
+        }
+        .item .word input {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(138, 124, 200, 0.4);
+            color: #e0e0e0;
+            padding: 0.3rem 0.5rem;
+            font-size: 0.9rem;
+            outline: none;
+            border-radius: 4px;
+        }
+        .actions {
+            display: flex;
+            gap: 0.4rem;
+        }
+        .btn-sm {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #aaa;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+        .btn-sm:hover {
+            border-color: rgba(138, 124, 200, 0.5);
+            color: #ddd;
+        }
+        .btn-sm.danger:hover {
+            border-color: rgba(232, 136, 136, 0.5);
+            color: #e88;
+        }
+        .footer-link {
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+        .footer-link a {
+            font-size: 0.75rem;
+            color: #888;
+            text-decoration: none;
+            letter-spacing: 0.1em;
+            transition: color 0.2s;
+        }
+        .footer-link a:hover { color: #ddd; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="topbar">
+            <h1>커스텀 단어 관리</h1>
+            <a href="index.html" class="nav">← 메인으로</a>
+        </div>
+
+        <div class="input-row">
+            <input type="text" id="wordInput" placeholder="단어를 입력하고 Enter" maxlength="20" autocomplete="off">
+        </div>
+        <div class="hint">2글자 이상, 공백 없이. 끝말잇기 규칙에 쓰입니다.</div>
+        <div class="error" id="error"></div>
+
+        <div class="search-row">
+            <input type="search" id="searchInput" placeholder="검색..." autocomplete="off">
+        </div>
+
+        <div class="meta">
+            <span id="count">총 0개</span>
+            <span id="filteredCount" style="display:none;"></span>
+        </div>
+
+        <ul class="list" id="list"></ul>
+
+        <div class="footer-link">
+            <a href="index.html">← 메인 페이지로 돌아가기</a>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'endword.customWords.v1';
+        let customWords = loadCustomWords();
+        let searchQuery = '';
+        let editingWord = null;
+
+        const $wordInput = document.getElementById('wordInput');
+        const $searchInput = document.getElementById('searchInput');
+        const $error = document.getElementById('error');
+        const $list = document.getElementById('list');
+        const $count = document.getElementById('count');
+        const $filteredCount = document.getElementById('filteredCount');
+
+        function loadCustomWords() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                const arr = Array.isArray(raw) ? raw : [];
+                const cleaned = arr
+                    .filter(w => typeof w === 'string')
+                    .map(w => w.trim())
+                    .filter(w => w.length >= 2 && !/\s/.test(w));
+                const before = arr.length;
+                const after = cleaned.length;
+                if (before !== after) {
+                    console.warn(`[custom-words] ${before - after}개의 잘못된 항목을 무시했습니다.`);
+                }
+                return [...new Set(cleaned)].sort((a, b) => a.localeCompare(b, 'ko'));
+            } catch (e) {
+                console.warn('[custom-words] localStorage 읽기 실패:', e);
+                return [];
+            }
+        }
+
+        function saveCustomWords() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(customWords));
+            } catch (e) {
+                showError('저장 실패: 브라우저 저장 공간이 부족하거나 차단되었습니다.');
+            }
+        }
+
+        function showError(msg) {
+            $error.textContent = msg;
+            if (msg) {
+                setTimeout(() => {
+                    if ($error.textContent === msg) $error.textContent = '';
+                }, 3000);
+            }
+        }
+
+        function validateWord(raw) {
+            const w = (raw || '').trim();
+            if (!w) return { ok: false, msg: '단어를 입력하세요.' };
+            if (w.length < 2) return { ok: false, msg: '2글자 이상이어야 합니다.' };
+            if (/\s/.test(w)) return { ok: false, msg: '공백 없이 한 단어만 입력하세요.' };
+            if (customWords.includes(w)) return { ok: false, msg: '이미 추가된 단어입니다.' };
+            return { ok: true, word: w };
+        }
+
+        function addWord() {
+            const result = validateWord($wordInput.value);
+            if (!result.ok) { showError(result.msg); return; }
+            customWords.push(result.word);
+            customWords.sort((a, b) => a.localeCompare(b, 'ko'));
+            saveCustomWords();
+            $wordInput.value = '';
+            $wordInput.focus();
+            render();
+        }
+
+        function deleteWord(word) {
+            if (!confirm(`'${word}' 을(를) 삭제할까요?`)) return;
+            customWords = customWords.filter(w => w !== word);
+            saveCustomWords();
+            render();
+        }
+
+        function startEdit(word) {
+            editingWord = word;
+            render();
+            // focus the edit input after render
+            requestAnimationFrame(() => {
+                const el = document.getElementById(`edit-${cssId(word)}`);
+                if (el) { el.focus(); el.select(); }
+            });
+        }
+
+        function finishEdit(oldWord, newRaw, save) {
+            const newVal = (newRaw || '').trim();
+            if (!save) { editingWord = null; render(); return; }
+            if (!newVal || newVal === oldWord) { editingWord = null; render(); return; }
+            if (newVal.length < 2) { showError('2글자 이상이어야 합니다.'); editingWord = null; render(); return; }
+            if (/\s/.test(newVal)) { showError('공백 없이 한 단어만 입력하세요.'); editingWord = null; render(); return; }
+            if (customWords.includes(newVal)) { showError('이미 추가된 단어입니다.'); editingWord = null; render(); return; }
+            const idx = customWords.indexOf(oldWord);
+            if (idx >= 0) customWords[idx] = newVal;
+            customWords.sort((a, b) => a.localeCompare(b, 'ko'));
+            saveCustomWords();
+            editingWord = null;
+            render();
+        }
+
+        function cssId(word) {
+            // safe id from any Korean string
+            return word.replace(/[^a-zA-Z0-9가-힣ㄱ-ㅎㅏ-ㅣ]/g, '_');
+        }
+
+        function render() {
+            const visible = searchQuery
+                ? customWords.filter(w => w.includes(searchQuery))
+                : customWords;
+            $count.textContent = `총 ${customWords.length}개`;
+            if (searchQuery) {
+                $filteredCount.style.display = '';
+                $filteredCount.textContent = ` → 검색결과 ${visible.length}개`;
+            } else {
+                $filteredCount.style.display = 'none';
+                $filteredCount.textContent = '';
+            }
+
+            if (customWords.length === 0) {
+                $list.innerHTML = '<li class="empty-state">아직 추가된 단어가 없습니다.<br>위 입력창에 단어를 입력하고 Enter를 누르세요.</li>';
+                return;
+            }
+            if (visible.length === 0) {
+                $list.innerHTML = `<li class="empty-state">'${escapeHtml(searchQuery)}' 와(과) 일치하는 단어가 없습니다.</li>`;
+                return;
+            }
+
+            const items = visible.map(word => {
+                const isEditing = editingWord === word;
+                const wordHtml = isEditing
+                    ? `<span class="word editing"><input id="edit-${cssId(word)}" type="text" value="${escapeHtml(word)}" maxlength="20" autocomplete="off"></span>`
+                    : `<span class="word">${escapeHtml(word)}</span>`;
+                const actionHtml = isEditing
+                    ? `<button class="btn-sm" data-act="save" data-word="${escapeHtml(word)}">저장</button>
+                       <button class="btn-sm" data-act="cancel" data-word="${escapeHtml(word)}">취소</button>`
+                    : `<button class="btn-sm" data-act="edit" data-word="${escapeHtml(word)}">편집</button>
+                       <button class="btn-sm danger" data-act="del" data-word="${escapeHtml(word)}">삭제</button>`;
+                return `<li class="item" data-word="${escapeHtml(word)}">${wordHtml}<div class="actions">${actionHtml}</div></li>`;
+            }).join('');
+            $list.innerHTML = items;
+        }
+
+        function escapeHtml(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // Events
+        $wordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); addWord(); }
+        });
+
+        $searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            render();
+        });
+
+        $list.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-act]');
+            if (!btn) return;
+            const word = btn.getAttribute('data-word');
+            const act = btn.getAttribute('data-act');
+            if (act === 'edit') startEdit(word);
+            else if (act === 'del') deleteWord(word);
+            else if (act === 'save') {
+                const input = document.getElementById(`edit-${cssId(word)}`);
+                if (input) finishEdit(word, input.value, true);
+            } else if (act === 'cancel') {
+                finishEdit(word, '', false);
+            }
+        });
+
+        $list.addEventListener('keydown', (e) => {
+            if (!e.target.matches('input[id^="edit-"]')) return;
+            const id = e.target.id.slice('edit-'.length);
+            const word = e.target.getAttribute('value') || (e.target.value);
+            // Use the actual currently-editing word (from state) — the attribute may have been HTML-escaped identically
+            const realWord = editingWord;
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                finishEdit(realWord, e.target.value, true);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                finishEdit(realWord, '', false);
+            }
+        });
+
+        $list.addEventListener('focusout', (e) => {
+            if (!e.target.matches('input[id^="edit-"]')) return;
+            // Auto-save on blur only if input is still in DOM (clicked away vs deleted)
+            setTimeout(() => {
+                if (editingWord && document.activeElement && document.activeElement.id === `edit-${cssId(editingWord)}`) return;
+                if (editingWord) finishEdit(editingWord, e.target.value, true);
+            }, 0);
+        }, true);
+
+        render();
+    </script>
+</body>
+</html>

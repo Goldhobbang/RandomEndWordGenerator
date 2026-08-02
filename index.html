@@ -257,12 +257,30 @@
             color: #3a3a3a;
             letter-spacing: 0.05em;
         }
+        .nav-link {
+            position: absolute;
+            top: 1.2rem;
+            right: 1.4rem;
+            font-size: 0.7rem;
+            color: #666;
+            text-decoration: none;
+            letter-spacing: 0.1em;
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        .nav-link:hover {
+            color: #ddd;
+            border-color: rgba(138, 124, 200, 0.5);
+        }
         #chainStatus.valid { color: #6c8; }
         #chainStatus.invalid { color: #e88; }
     </style>
 </head>
 <body>
     <div class="container" id="container">
+        <a href="custom.html" class="nav-link">커스텀 단어 →</a>
         <h1>RANDOM ENDWORD GENERATOR</h1>
         <div class="result-wrap">
             <canvas id="particleCanvas"></canvas>
@@ -295,6 +313,7 @@
     <script>
         let startDict = {};
         let wordList = [];
+        let customWords = [];
         let animTimer = null;
         let currentText = '';
 
@@ -398,6 +417,8 @@
         }
 
         /* ── Word chain logic ── */
+        const MAX_WORD_LEN = 7;
+
         function overlapAppend(current, newWord) {
             const maxK = Math.min(current.length, newWord.length);
             for (let k = maxK; k > 0; k--) {
@@ -447,7 +468,7 @@
             return pool[Math.floor(Math.random() * pool.length)];
         }
 
-        function generateChain(maxWords, maxChars) {
+        function generateBaseChain(maxWords, maxChars) {
             const usedWords = [];
             const start = wordList[Math.floor(Math.random() * wordList.length)];
             insertWordSorted(usedWords, start);
@@ -471,6 +492,199 @@
                 insertWordSorted(usedWords, next);
             }
             return { text: result, chain };
+        }
+
+        function mergedLen(chain) {
+            if (chain.length === 0) return 0;
+            let total = chain[0].length;
+            let tail = chain[0];
+            for (let i = 1; i < chain.length; i++) {
+                const w = chain[i];
+                let o = 1;
+                const maxK = Math.min(MAX_WORD_LEN, w.length, tail.length);
+                for (let k = maxK; k > 0; k--) {
+                    if (tail.endsWith(w.slice(0, k))) { o = k; break; }
+                }
+                total += w.length - o;
+                tail = (tail + w.slice(o)).slice(-MAX_WORD_LEN);
+            }
+            return total;
+        }
+
+        function findInsertSlot(chain, customWords, usedSet) {
+            if (chain.length < 2) return null;
+            const posMap = {};
+            for (let i = 0; i < chain.length - 1; i++) {
+                const k = chain[i].slice(-1) + '|' + chain[i + 1][0];
+                if (!posMap[k]) posMap[k] = [];
+                posMap[k].push(i);
+            }
+            // Fisher-Yates with Math.random (customWords is small)
+            const order = customWords.slice();
+            for (let i = order.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [order[i], order[j]] = [order[j], order[i]];
+            }
+            for (const w of order) {
+                if (usedSet.has(w)) continue;
+                const k = w[0] + '|' + w.slice(-1);
+                if (posMap[k] && posMap[k].length > 0) {
+                    return { word: w, atIndex: posMap[k][0] };
+                }
+            }
+            return null;
+        }
+
+        function walkFromSeed(seed, maxWords, maxChars) {
+            // Like generateBaseChain but starts with `seed`; returns null if seed dies immediately.
+            const usedWords = [];
+            insertWordSorted(usedWords, seed);
+            let result = seed;
+            const chain = [seed];
+            for (let i = 0; i < maxWords - 1; i++) {
+                const lastChar = result[result.length - 1];
+                const candidates = startDict[lastChar];
+                if (!candidates || candidates.length === 0) break;
+                const next = pickNext(candidates, usedWords);
+                if (!next) break;
+                const appended = overlapAppend(result, next);
+                if (result.length + appended.length > maxChars) break;
+                result += appended;
+                chain.push(next);
+                insertWordSorted(usedWords, next);
+            }
+            if (chain.length < 2) return null;
+            return { text: result, chain };
+        }
+
+        function generateChain(maxWords, maxChars) {
+            if (customWords.length === 0) {
+                return generateBaseChain(maxWords, maxChars);
+            }
+
+            // Primary: inject a custom word near the 40-60% point of the chain
+            for (let attempt = 0; attempt < 30; attempt++) {
+                const targetMid = Math.max(1, Math.floor(Math.min(maxWords, 30) * (0.4 + Math.random() * 0.2)));
+                const usedWords = [];
+                const start = wordList[Math.floor(Math.random() * wordList.length)];
+                insertWordSorted(usedWords, start);
+                let result = start;
+                const chain = [start];
+                let injected = false;
+
+                while (chain.length < maxWords) {
+                    const lastChar = result[result.length - 1];
+                    if (!injected && chain.length >= targetMid) {
+                        const compat = customWords.filter(w =>
+                            w[0] === lastChar
+                            && binarySearchWord(usedWords, w) === -1
+                            && result.length + overlapAppend(result, w).length <= maxChars);
+                        if (compat.length > 0) {
+                            const w = compat[Math.floor(Math.random() * compat.length)];
+                            result += overlapAppend(result, w);
+                            chain.push(w);
+                            insertWordSorted(usedWords, w);
+                            injected = true;
+                            continue;
+                        }
+                    }
+                    const candidates = startDict[lastChar];
+                    if (!candidates || candidates.length === 0) break;
+                    const next = pickNext(candidates, usedWords);
+                    if (!next) break;
+                    const appended = overlapAppend(result, next);
+                    if (result.length + appended.length > maxChars) break;
+                    result += appended;
+                    chain.push(next);
+                    insertWordSorted(usedWords, next);
+                }
+                if (injected && chain.length >= 2) {
+                    return { text: result, chain };
+                }
+            }
+
+            // Fallback tier 1: splice a custom word into an existing valid slot
+            for (let attempt = 0; attempt < 20; attempt++) {
+                const base = generateBaseChain(maxWords, maxChars);
+                const usedSet = new Set(base.chain);
+                const slot = findInsertSlot(base.chain, customWords, usedSet);
+                if (slot) {
+                    const newChain = base.chain.slice(0, slot.atIndex + 1)
+                        .concat([slot.word])
+                        .concat(base.chain.slice(slot.atIndex + 1));
+                    if (mergedLen(newChain) <= maxChars) {
+                        let text = newChain[0];
+                        let tail = newChain[0];
+                        for (let i = 1; i < newChain.length; i++) {
+                            const w = newChain[i];
+                            const app = overlapAppend(tail, w);
+                            text += app;
+                            tail = (tail + app).slice(-MAX_WORD_LEN);
+                        }
+                        return { text, chain: newChain };
+                    }
+                }
+            }
+
+            // Fallback tier 2: append a compatible custom word to the chain end
+            for (let attempt = 0; attempt < 60; attempt++) {
+                const base = generateBaseChain(maxWords, maxChars);
+                if (base.chain.length === 0) continue;
+                const lastChar = base.chain[base.chain.length - 1].slice(-1);
+                const usedSet = new Set(base.chain);
+                const order = customWords.slice();
+                for (let i = order.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [order[i], order[j]] = [order[j], order[i]];
+                }
+                const compat = order.filter(w =>
+                    w[0] === lastChar
+                    && !usedSet.has(w)
+                    && base.text.length + overlapAppend(base.text, w).length <= maxChars);
+                if (compat.length > 0) {
+                    const w = compat[Math.floor(Math.random() * compat.length)];
+                    return { text: base.text + overlapAppend(base.text, w), chain: base.chain.concat([w]) };
+                }
+            }
+
+            // Fallback tier 3: seed the chain with a custom word
+            const order = customWords.slice();
+            for (let i = order.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [order[i], order[j]] = [order[j], order[i]];
+            }
+            for (let attempt = 0; attempt < 20; attempt++) {
+                const seed = order[attempt % order.length];
+                const result = walkFromSeed(seed, maxWords, maxChars);
+                if (result) return result;
+            }
+
+            // Fallback tier 4: minimal [predecessor, custom word] chain to guarantee inclusion
+            const order4 = customWords.slice();
+            for (let i = order4.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [order4[i], order4[j]] = [order4[j], order4[i]];
+            }
+            const preByEnd = {};
+            for (const x of wordList) {
+                const ec = x[x.length - 1];
+                if (!preByEnd[ec]) preByEnd[ec] = [];
+                preByEnd[ec].push(x);
+            }
+            for (const w of order4) {
+                const pres = preByEnd[w[0]] || [];
+                for (let attempt = 0; attempt < 20; attempt++) {
+                    if (pres.length === 0) break;
+                    const pre = pres[Math.floor(Math.random() * pres.length)];
+                    if (pre === w) continue;
+                    if (pre.length + overlapAppend(pre, w).length > maxChars) continue;
+                    return { text: pre + overlapAppend(pre, w), chain: [pre, w] };
+                }
+            }
+
+            // Last resort: degrade to a base chain without a custom word
+            console.warn('[endword] custom word placement failed; falling back to base chain');
+            return generateBaseChain(maxWords, maxChars);
         }
 
         function validateChain(chain) {
@@ -637,6 +851,26 @@
                 startDict = await res.json();
                 wordList = Object.values(startDict).flat();
 
+                // Load custom words from localStorage (browser-local persistence)
+                try {
+                    const raw = JSON.parse(localStorage.getItem('endword.customWords.v1') || '[]');
+                    if (Array.isArray(raw)) {
+                        const seen = new Set();
+                        customWords = [];
+                        for (const w of raw) {
+                            if (typeof w !== 'string') continue;
+                            const t = w.trim();
+                            if (t.length < 2 || /\s/.test(t)) continue;
+                            if (seen.has(t)) continue;
+                            seen.add(t);
+                            customWords.push(t);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[endword] custom words load failed:', e);
+                    customWords = [];
+                }
+
                 const btn = document.getElementById('btn');
                 const copyBtn = document.getElementById('copyBtn');
                 const instantBtn = document.getElementById('instantBtn');
@@ -646,7 +880,10 @@
                 btn.disabled = false;
                 instantBtn.disabled = false;
                 result.textContent = '버튼을 눌러 생성하세요';
-                info.textContent = `${wordList.length.toLocaleString()}개 단어 로드 완료`;
+                const customMsg = customWords.length > 0
+                    ? ` + 커스텀 ${customWords.length}개`
+                    : '';
+                info.textContent = `${wordList.length.toLocaleString()}개${customMsg} 단어 로드 완료`;
 
                 function doGenerate(animate) {
                     if (animTimer) clearTimeout(animTimer);
