@@ -78,6 +78,7 @@
             display: flex;
             gap: 0.6rem;
             margin-bottom: 0.4rem;
+            align-items: flex-start;
         }
         .input-row input {
             flex: 1;
@@ -91,6 +92,25 @@
             transition: border-color 0.3s, box-shadow 0.3s;
         }
         .input-row input:focus {
+            border-color: rgba(138, 124, 200, 0.4);
+            box-shadow: 0 0 12px rgba(138, 124, 200, 0.1);
+        }
+        .input-row textarea {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #e0e0e0;
+            padding: 0.7rem 0.8rem;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            outline: none;
+            border-radius: 6px;
+            resize: none;
+            overflow: hidden;
+            font-family: inherit;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .input-row textarea:focus {
             border-color: rgba(138, 124, 200, 0.4);
             box-shadow: 0 0 12px rgba(138, 124, 200, 0.1);
         }
@@ -202,18 +222,71 @@
             border-color: rgba(232, 136, 136, 0.5);
             color: #e88;
         }
-        .footer-link {
-            margin-top: 1.5rem;
-            text-align: center;
+        .btn {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #aaa;
+            padding: 0.55rem 1.4rem;
+            font-size: 0.8rem;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.2s;
         }
-        .footer-link a {
-            font-size: 0.75rem;
-            color: #888;
-            text-decoration: none;
-            letter-spacing: 0.1em;
-            transition: color 0.2s;
+        .btn:hover {
+            border-color: rgba(138, 124, 200, 0.5);
+            color: #ddd;
         }
-        .footer-link a:hover { color: #ddd; }
+        .btn.ghost {
+            background: transparent;
+            border-color: rgba(255,255,255,0.08);
+        }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal-overlay[hidden] { display: none; }
+        .modal {
+            width: min(560px, 92vw);
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            background: rgba(18,18,28,0.92);
+            backdrop-filter: blur(20px);
+        }
+        .modal h2 {
+            font-size: 1rem;
+            font-weight: 400;
+            letter-spacing: 0.15em;
+            color: #c9c3e8;
+            margin-bottom: 0.5rem;
+        }
+        .modal-msg {
+            font-size: 0.85rem;
+            color: #aaa;
+            letter-spacing: 0.03em;
+            margin-bottom: 1rem;
+        }
+        #modalList {
+            overflow-y: auto;
+            min-height: 0;
+            flex: 1 1 auto;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.6rem;
+            margin-top: 1.2rem;
+        }
+        .error.ok { color: #6c8; }
     </style>
 </head>
 <body>
@@ -224,9 +297,10 @@
         </div>
 
         <div class="input-row">
-            <input type="text" id="wordInput" placeholder="단어를 입력하고 Enter" maxlength="20" autocomplete="off">
+            <textarea id="wordInput" rows="1" placeholder="단어를 입력하고 추가 버튼(또는 Ctrl+Enter)" autocomplete="off"></textarea>
+            <button id="submitBtn" class="btn-sm">추가</button>
         </div>
-        <div class="hint">2글자 이상, 공백 없이. 끝말잇기 규칙에 쓰입니다.</div>
+        <div class="hint">2글자 이상, 공백 없이. 여러 단어는 줄바꿈된 텍스트를 붙여넣으면 자동 감지됩니다. Enter=바로 추가(한 줄)/새 줄(여러 줄), Ctrl+Enter 또는 추가 버튼=제출.</div>
         <div class="error" id="error"></div>
 
         <div class="search-row">
@@ -239,9 +313,17 @@
         </div>
 
         <ul class="list" id="list"></ul>
+    </div>
 
-        <div class="footer-link">
-            <a href="index.html">← 메인 페이지로 돌아가기</a>
+    <div class="modal-overlay" id="modalOverlay" hidden>
+        <div class="modal">
+            <h2>단어 감지</h2>
+            <p class="modal-msg" id="modalMsg"></p>
+            <ul class="list" id="modalList"></ul>
+            <div class="modal-actions">
+                <button class="btn" id="modalAdd">추가</button>
+                <button class="btn ghost" id="modalCancel">취소</button>
+            </div>
         </div>
     </div>
 
@@ -250,13 +332,22 @@
         let customWords = loadCustomWords();
         let searchQuery = '';
         let editingWord = null;
+        let detectedWords = [];
+        let modalEditingIndex = null;
+        let isComposing = false;
 
         const $wordInput = document.getElementById('wordInput');
+        const $submitBtn = document.getElementById('submitBtn');
         const $searchInput = document.getElementById('searchInput');
         const $error = document.getElementById('error');
         const $list = document.getElementById('list');
         const $count = document.getElementById('count');
         const $filteredCount = document.getElementById('filteredCount');
+        const $modalOverlay = document.getElementById('modalOverlay');
+        const $modalMsg = document.getElementById('modalMsg');
+        const $modalList = document.getElementById('modalList');
+        const $modalAdd = document.getElementById('modalAdd');
+        const $modalCancel = document.getElementById('modalCancel');
 
         function loadCustomWords() {
             try {
@@ -288,9 +379,23 @@
 
         function showError(msg) {
             $error.textContent = msg;
+            $error.classList.remove('ok');
             if (msg) {
                 setTimeout(() => {
                     if ($error.textContent === msg) $error.textContent = '';
+                }, 3000);
+            }
+        }
+
+        function showNotice(msg) {
+            $error.textContent = msg;
+            $error.classList.add('ok');
+            if (msg) {
+                setTimeout(() => {
+                    if ($error.textContent === msg) {
+                        $error.textContent = '';
+                        $error.classList.remove('ok');
+                    }
                 }, 3000);
             }
         }
@@ -304,15 +409,127 @@
             return { ok: true, word: w };
         }
 
-        function addWord() {
-            const result = validateWord($wordInput.value);
+        function addWord(word) {
+            const result = validateWord(word !== undefined ? word : $wordInput.value);
             if (!result.ok) { showError(result.msg); return; }
             customWords.push(result.word);
             customWords.sort((a, b) => a.localeCompare(b, 'ko'));
             saveCustomWords();
             $wordInput.value = '';
+            autoResize();
             $wordInput.focus();
             render();
+        }
+
+        function submitInput() {
+            const words = ($wordInput.value || '')
+                .split(/\r?\n/)
+                .map(s => s.trim())
+                .filter(Boolean);
+            if (words.length === 0) { showError('단어를 입력하세요.'); return; }
+            if (words.length === 1) { addWord(words[0]); return; }
+            detectedWords = words.slice();
+            openModal();
+        }
+
+        function detectInput() {
+            if (!$modalOverlay.hidden) return;
+            const words = ($wordInput.value || '')
+                .split(/\r?\n/)
+                .map(s => s.trim())
+                .filter(Boolean);
+            if (words.length >= 2) {
+                detectedWords = words.slice();
+                openModal();
+            }
+        }
+
+        function autoResize() {
+            $wordInput.style.height = 'auto';
+            $wordInput.style.height = $wordInput.scrollHeight + 'px';
+        }
+
+        function openModal() {
+            $modalMsg.textContent = `${detectedWords.length}개의 단어가 감지되었습니다. 추가할까요?`;
+            modalEditingIndex = null;
+            $modalOverlay.hidden = false;
+            renderModalList();
+            $modalAdd.focus();
+        }
+
+        function closeModal(clearInput) {
+            $modalOverlay.hidden = true;
+            detectedWords = [];
+            modalEditingIndex = null;
+            if (clearInput) {
+                $wordInput.value = '';
+                autoResize();
+                $wordInput.focus();
+            }
+        }
+
+        function renderModalList() {
+            if (detectedWords.length === 0) {
+                $modalList.innerHTML = '<li class="empty-state">감지된 단어가 없습니다.</li>';
+                return;
+            }
+            const items = detectedWords.map((word, idx) => {
+                const isEditing = modalEditingIndex === idx;
+                const wordHtml = isEditing
+                    ? `<span class="word editing"><input id="medit-${idx}" type="text" value="${escapeHtml(word)}" autocomplete="off"></span>`
+                    : `<span class="word">${escapeHtml(word)}</span>`;
+                const actionHtml = isEditing
+                    ? `<button class="btn-sm" data-act="save" data-index="${idx}">저장</button>
+                       <button class="btn-sm" data-act="cancel" data-index="${idx}">취소</button>`
+                    : `<button class="btn-sm" data-act="edit" data-index="${idx}">편집</button>
+                       <button class="btn-sm danger" data-act="del" data-index="${idx}">삭제</button>`;
+                return `<li class="item">${wordHtml}<div class="actions">${actionHtml}</div></li>`;
+            }).join('');
+            $modalList.innerHTML = items;
+        }
+
+        function saveModalEdit(idx, value, save) {
+            if (save) {
+                const v = (value || '').trim();
+                if (v) detectedWords[idx] = v;
+            }
+            modalEditingIndex = null;
+            renderModalList();
+        }
+
+        function commitDetected() {
+            if (detectedWords.length === 0) {
+                closeModal(true);
+                showError('추가할 단어가 없습니다.');
+                return;
+            }
+            const seen = new Set();
+            let dup = 0, invalid = 0;
+            const toAdd = [];
+            for (const raw of detectedWords) {
+                const w = (raw || '').trim();
+                if (!w) continue;
+                if (w.length < 2 || /\s/.test(w)) { invalid++; continue; }
+                if (seen.has(w) || customWords.includes(w)) { dup++; continue; }
+                seen.add(w);
+                toAdd.push(w);
+            }
+            if (toAdd.length > 0) {
+                customWords.push(...toAdd);
+                customWords.sort((a, b) => a.localeCompare(b, 'ko'));
+                saveCustomWords();
+            }
+            render();
+            if (toAdd.length > 0) {
+                let msg = `${toAdd.length}개 추가됨`;
+                if (dup) msg += `, 중복 ${dup}개 제외`;
+                if (invalid) msg += `, 잘못된 항목 ${invalid}개 제외`;
+                closeModal(true);
+                showNotice(msg);
+            } else {
+                closeModal(true);
+                showNotice('추가된 단어가 없습니다 (모두 중복이거나 잘못된 항목)');
+            }
         }
 
         function deleteWord(word) {
@@ -399,8 +616,76 @@
         }
 
         // Events
+        $wordInput.addEventListener('input', autoResize);
+        $wordInput.addEventListener('paste', () => {
+            requestAnimationFrame(detectInput);
+        });
+        $wordInput.addEventListener('compositionstart', () => { isComposing = true; });
+        $wordInput.addEventListener('compositionend', () => {
+            isComposing = false;
+            requestAnimationFrame(autoResize);
+        });
+
         $wordInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); addWord(); }
+            if (e.isComposing || e.keyCode === 229) return;
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                submitInput();
+                return;
+            }
+            if (e.key === 'Enter' && !e.shiftKey && !$wordInput.value.includes('\n')) {
+                e.preventDefault();
+                submitInput();
+            }
+        });
+
+        $submitBtn.addEventListener('click', () => submitInput());
+
+        $modalAdd.addEventListener('click', () => commitDetected());
+        $modalCancel.addEventListener('click', () => closeModal(true));
+
+        $modalOverlay.addEventListener('click', (e) => {
+            if (e.target === $modalOverlay) closeModal(true);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !$modalOverlay.hidden) closeModal(true);
+        });
+
+        $modalList.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-act]');
+            if (!btn) return;
+            const idx = Number(btn.getAttribute('data-index'));
+            const act = btn.getAttribute('data-act');
+            if (act === 'edit') {
+                modalEditingIndex = idx;
+                renderModalList();
+                requestAnimationFrame(() => {
+                    const el = document.getElementById(`medit-${idx}`);
+                    if (el) { el.focus(); el.select(); }
+                });
+            } else if (act === 'del') {
+                detectedWords.splice(idx, 1);
+                modalEditingIndex = null;
+                renderModalList();
+            } else if (act === 'save') {
+                const input = document.getElementById(`medit-${idx}`);
+                saveModalEdit(idx, input ? input.value : '', true);
+            } else if (act === 'cancel') {
+                saveModalEdit(idx, '', false);
+            }
+        });
+
+        $modalList.addEventListener('keydown', (e) => {
+            if (!e.target.matches('input[id^="medit-"]')) return;
+            if (modalEditingIndex === null) return;
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveModalEdit(modalEditingIndex, e.target.value, true);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                saveModalEdit(modalEditingIndex, '', false);
+            }
         });
 
         $searchInput.addEventListener('input', (e) => {
@@ -448,6 +733,7 @@
         }, true);
 
         render();
+        autoResize();
     </script>
 </body>
 </html>

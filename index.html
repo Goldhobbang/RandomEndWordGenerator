@@ -412,6 +412,9 @@
         let animTimer = null;
         let currentText = '';
         let customWeight = 0;
+        let customUsage = {};        // 커스텀 단어 -> 세션 내 배치 횟수
+        let customPlacedTotal = 0;   // 세션 내 커스텀 배치 총합
+        let customEndChars = new Set(); // 사전 단어의 끝 글자 집합 (도달 가능성 판정용)
 
         const COLORS = ['#5b9bd5', '#8a7cc8', '#d55b5b', '#5bd5a8', '#d5c85b', '#d58a5b', '#ff4444', '#ffaa00', '#ff00ff'];
 
@@ -607,32 +610,44 @@
             return total;
         }
 
-        const WEIGHT_PROB = [0, 0.1, 0.3, 0.5, 0.7, 0.9];
-
-        function getCustomWeightLevel() {
-            return Math.round(customWeight / 20);
+        /* ── Custom-word probability curve ──
+           Slider 0..100 → probability 0..1 via x² curve.
+           Quadratic keeps low slider values from accidentally producing
+           30%+, and high values (≥80) approach saturation. */
+        function customProbability(sliderValue) {
+            const x = Math.max(0, Math.min(100, sliderValue)) / 100;
+            return x * x;
         }
 
         function weightLabel(value) {
             return `${Math.round(value)}%`;
         }
 
-        function bandProbability(level) {
-            return WEIGHT_PROB[level] || 0;
-        }
-
         function generateWeightedChain(maxWords, maxChars, p) {
             const usedWords = [];
-            const customStarts = new Set(customWords.map(w => w[0]));
+            const customSet = new Set(customWords);
             const isLive = w => {
                 const c = w[w.length - 1];
                 return startDict[c] && startDict[c].length > 0;
             };
+            const customStarts = new Set(customWords.map(w => w[0]));
+            // 도달 가능 커스텀만 회전 대상 (첫 글자가 사전 끝 글자인 단어)
+            const customReachable = customEndChars.size > 0
+                ? customWords.filter(w => customEndChars.has(w[0]))
+                : customWords;
+            const target = customPlacedTotal / (customReachable.length || 1);              // 누적 평균
+            const dueWords = customReachable.filter(c => (customUsage[c] || 0) <= target); // 평균 이하 = 배치 예정
+            const dueSet = new Set(dueWords);
+            const dueStarts = new Set(dueWords.map(w => w[0]));
 
+            // 시작 유도: due 커스텀의 첫 글자로 끝나는 사전 단어로 시작
             let start;
-            if (p > 0) {
-                const biased = wordList.filter(w => customStarts.has(w[w.length - 1]));
-                start = (biased.length > 0 ? biased : wordList)[Math.floor(Math.random() * (biased.length > 0 ? biased.length : wordList.length))];
+            if (p > 0 && customWords.length > 0) {
+                let biased = wordList.filter(w => dueStarts.size > 0 ? dueStarts.has(w[w.length - 1]) : customStarts.has(w[w.length - 1]));
+                if (biased.length === 0) biased = wordList.filter(w => customStarts.has(w[w.length - 1]));
+                start = biased.length > 0
+                    ? biased[Math.floor(Math.random() * biased.length)]
+                    : wordList[Math.floor(Math.random() * wordList.length)];
             } else {
                 start = wordList[Math.floor(Math.random() * wordList.length)];
             }
@@ -644,32 +659,42 @@
 
             while (chain.length < maxWords) {
                 const lastChar = result[result.length - 1];
-                const ratio = chain.length > 0 ? customPlaced / chain.length : 0;
                 let next = null;
 
-                if (ratio < p || Math.random() < p) {
-                    let compat = customWords.filter(w =>
+                if (p > 0 && customSet.size > 0 && Math.random() < p) {
+                    const compat = customWords.filter(w =>
                         w[0] === lastChar
                         && binarySearchWord(usedWords, w) === -1
                         && result.length + overlapAppend(result, w).length <= maxChars);
-                    if (compat.length > 0) {
-                        const live = compat.filter(isLive);
-                        if (live.length > 0) compat = live;
-                        next = compat[Math.floor(Math.random() * compat.length)];
+                    const dueCompat = compat.filter(w => dueSet.has(w));                // 1) 직접 체인: due만 선택
+                    if (dueCompat.length > 0) {
+                        const live = dueCompat.filter(isLive);
+                        const pool = live.length > 0 ? live : dueCompat;
+                        let min = Infinity, best = [];
+                        for (const w of pool) {
+                            const u = customUsage[w] || 0;
+                            if (u < min) { min = u; best = [w]; }
+                            else if (u === min) best.push(w);
+                        }
+                        next = best[Math.floor(Math.random() * best.length)];           // 최소 사용 단어 선택 (균등 회전)
                     } else {
-                        const candidates = startDict[lastChar];
+                        const candidates = startDict[lastChar];                         // 2) 브리지: due 커스텀 첫 글자로 끝나는 사전 단어
                         if (candidates) {
                             let pool = candidates.filter(w =>
                                 binarySearchWord(usedWords, w) === -1
                                 && customStarts.has(w[w.length - 1]));
-                            const liveB = pool.filter(isLive);
-                            if (liveB.length > 0) pool = liveB;
-                            if (pool.length > 0) next = pool[Math.floor(Math.random() * pool.length)];
+                            if (pool.length > 0) {
+                                const duePool = pool.filter(w => dueStarts.has(w[w.length - 1]));
+                                if (duePool.length > 0) pool = duePool;
+                                const liveB = pool.filter(isLive);
+                                if (liveB.length > 0) pool = liveB;
+                                if (pool.length > 0) next = pool[Math.floor(Math.random() * pool.length)];
+                            }
                         }
                     }
                 }
 
-                if (!next) {
+                if (!next) {                                                            // 3) 폴백: 기존 정상 선택
                     const candidates = startDict[lastChar];
                     if (!candidates || candidates.length === 0) break;
                     next = pickNext(candidates, usedWords);
@@ -681,23 +706,29 @@
 
                 const startIdx = result.length;
                 result += appended;
-                const isCustom = customWords.includes(next);
-                if (isCustom) {
+                if (customSet.has(next)) {
                     customPlaced++;
                     customRanges.push({ start: startIdx, end: startIdx + appended.length });
                 }
                 chain.push(next);
                 insertWordSorted(usedWords, next);
             }
+
+            // 세션 균등 카운터 갱신
+            for (const w of chain) {
+                if (customSet.has(w)) {
+                    customUsage[w] = (customUsage[w] || 0) + 1;
+                    customPlacedTotal++;
+                }
+            }
             return { text: result, chain, customRanges };
         }
 
         function generateChain(maxWords, maxChars) {
-            const level = getCustomWeightLevel();
-            if (customWords.length === 0 || level === 0) {
+            if (customWords.length === 0 || customWeight === 0) {
                 return generateBaseChain(maxWords, maxChars);
             }
-            const p = bandProbability(level);
+            const p = customProbability(customWeight);
             return generateWeightedChain(maxWords, maxChars, p);
         }
 
@@ -890,6 +921,7 @@
                 const res = await fetch('words.json');
                 startDict = await res.json();
                 wordList = Object.values(startDict).flat();
+                customEndChars = new Set(wordList.map(w => w[w.length - 1]));
 
                 // Load custom words from localStorage (browser-local persistence)
                 try {
