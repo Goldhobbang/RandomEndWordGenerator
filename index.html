@@ -6,9 +6,10 @@
     <title>Random EndWord Generator</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-size: 17px; }
         body {
             font-family: 'Segoe UI', sans-serif;
-            font-weight: 500;
+            font-weight: 600;
             background: #050508;
             color: #e0e0e0;
             display: flex;
@@ -189,9 +190,10 @@
             flex-direction: column;
             gap: 0.5rem;
         }
-        .field label {
+        .field-label {
             font-size: 0.6rem;
-            color: #666;
+            color: #ccc;
+            font-weight: 400;
             letter-spacing: 0.14em;
             text-transform: uppercase;
         }
@@ -219,7 +221,7 @@
             row-gap: 0.25rem;
             align-items: center;
         }
-        .field.slider-field label {
+        .slider-field .field-label {
             grid-column: 1;
             grid-row: 1;
         }
@@ -248,7 +250,7 @@
             accent-color: #8a7cc8;
             cursor: pointer;
         }
-        .limit-toggle span {
+        .toggle-label {
             font-size: 0.6rem;
             color: #666;
             letter-spacing: 0.14em;
@@ -374,21 +376,21 @@
         <div class="panel">
             <div class="panel-row">
                 <div class="field">
-                    <label>최대 단어 수</label>
+                    <label class="field-label">최대 단어 수</label>
                     <input type="number" id="maxWords" value="30" min="1" max="1000">
                 </div>
                 <div class="field">
-                    <label>최대 글자 수</label>
+                    <label class="field-label">최대 글자 수</label>
                     <input type="number" id="maxChars" value="50" min="1" max="5000">
                 </div>
                 <label class="limit-toggle">
                     <input type="checkbox" id="noLimit">
-                    <span>제한 X</span>
+                    <span class="toggle-label">제한 X</span>
                 </label>
                 <a href="custom.html" class="nav-link">커스텀 단어 →</a>
             </div>
             <div class="field slider-field">
-                <label>커스텀 단어 출현 빈도</label>
+                <label class="field-label">커스텀 출현</label>
                 <input type="range" id="customWeight" min="0" max="100" step="1" value="0">
                 <span class="weight-label" id="customWeightLabel">0%</span>
             </div>
