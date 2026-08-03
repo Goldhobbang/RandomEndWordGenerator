@@ -708,7 +708,8 @@
                 result += appended;
                 if (customSet.has(next)) {
                     customPlaced++;
-                    customRanges.push({ start: startIdx, end: startIdx + appended.length });
+                    const wordStart = startIdx - (next.length - appended.length);
+                    customRanges.push({ start: wordStart, end: startIdx + appended.length });
                 }
                 chain.push(next);
                 insertWordSorted(usedWords, next);
